@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>NEXA · Panel del equipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">
+      <div class="orb" aria-hidden="true"></div>
+      <div>
+        <div class="word">NEXA<small>Panel</small></div>
+        <div class="biz" id="teamBiz"></div>
+      </div>
+    </div>
+    <span class="live off" id="liveTag"><i></i><span>Conectando…</span></span>
+  </div>
+
+  <form class="panel pad pin" id="pinForm">
+    <h2>Panel del equipo</h2>
+    <p class="sub">Escribe la clave del equipo para ver y contestar las preguntas de tus clientes.</p>
+    <div><label class="l" for="pin">Clave</label><input type="text" id="pin" inputmode="numeric" autocomplete="off"></div>
+    <div class="row"><button class="btn" type="submit">Entrar</button></div>
+  </form>
+
+  <div id="teamBody" style="display:flex;flex-direction:column;gap:14px" hidden>
+    <section class="panel pad setup" id="setupBox" hidden>
+      <h2>Tu negocio todavía no tiene datos</h2>
+      <p class="sub">Carga el ejemplo de Café Central para probar, o llena tus propios datos en Mi negocio.</p>
+      <div class="row"><button class="btn" type="button" id="seedBtn">Cargar ejemplo</button></div>
+    </section>
+
+    <nav role="tablist" aria-label="Secciones del panel">
+      <button role="tab" id="t-bandeja" aria-controls="v-bandeja" aria-selected="true">Bandeja <span class="badge" id="pendBadge" hidden>0</span></button>
+      <button role="tab" id="t-actividad" aria-controls="v-actividad" aria-selected="false">Actividad</button>
+      <button role="tab" id="t-negocio" aria-controls="v-negocio" aria-selected="false">Mi negocio</button>
+    </nav>
+
+    <section class="panel" id="v-bandeja" role="tabpanel" aria-labelledby="t-bandeja">
+      <div class="pad">
+        <div>
+          <h2>Preguntas sin responder</h2>
+          <p class="sub">Llegan en vivo desde el chat de tus clientes. Tu respuesta aparece en su chat al instante y NEXA la aprende.</p>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="sAns">0</b><span>respondidas por NEXA</span></div>
+          <div class="stat"><b id="sEsc">0</b><span>pasadas al equipo</span></div>
+          <div class="stat"><b id="sMin">0</b><span>min ahorrados (aprox.)</span></div>
+        </div>
+        <div id="tickets" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="v-actividad" role="tabpanel" aria-labelledby="t-actividad" hidden>
+      <div class="pad">
+        <div>
+          <h2>Últimas conversaciones</h2>
+          <p class="sub">Todo lo que han preguntado tus clientes y quién respondió.</p>
+        </div>
+        <div class="feed" id="feed"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="v-negocio" role="tabpanel" aria-labelledby="t-negocio" hidden>
+      <form class="pad" id="bizForm">
+        <div>
+          <h2>Datos de tu negocio</h2>
+          <p class="sub">La página del cliente y el asistente usan solo estos datos. Al guardar, se actualizan para todos.</p>
+        </div>
+        <div class="grid2">
+          <div><label class="l" for="fNombre">Nombre</label><input type="text" id="fNombre" maxlength="60"></div>
+          <div><label class="l" for="fGiro">Giro</label><input type="text" id="fGiro" maxlength="60" placeholder="Cafetería, estética, papelería…"></div>
+          <div><label class="l" for="fHorario">Horario</label><input type="text" id="fHorario" maxlength="80"></div>
+          <div><label class="l" for="fTel">Teléfono o WhatsApp</label><input type="text" id="fTel" maxlength="40"></div>
+        </div>
+        <div><label class="l" for="fDir">Dirección</label><input type="text" id="fDir" maxlength="140"></div>
+        <div><label class="l" for="fProd">Productos y precios</label><textarea id="fProd" rows="5"></textarea><span class="hint">Uno por línea: Producto - $precio</span></div>
+        <div><label class="l" for="fExtra">Otra información</label><textarea id="fExtra" rows="3" placeholder="Formas de pago, envíos, promociones…"></textarea></div>
+        <div class="row"><button class="btn" type="submit">Guardar cambios</button></div>
+        <hr>
+        <div>
+          <h2>Lo que NEXA ya sabe</h2>
+          <p class="sub">Preguntas frecuentes, incluidas las que aprendió de tus respuestas.</p>
+        </div>
+        <div id="faqList" style="display:flex;flex-direction:column;gap:10px"></div>
+        <div class="grid2">
+          <div><label class="l" for="nQ">Nueva pregunta</label><input type="text" id="nQ" maxlength="160" placeholder="¿Hacen pedidos para llevar?"></div>
+          <div><label class="l" for="nA">Respuesta</label><input type="text" id="nA" maxlength="300" placeholder="Sí, pide en caja o por WhatsApp."></div>
+        </div>
+        <div class="row"><button class="btn ghost" type="button" id="addFaq">Agregar pregunta</button></div>
+      </form>
+    </section>
+
+    <section class="panel pad share">
+      <h2>Página para tus clientes</h2>
+      <p class="sub">Comparte este enlace. Tus clientes solo verán el menú y el asistente.</p>
+      <code id="clientUrl"></code>
+      <div class="row">
+        <button class="btn ghost" type="button" id="copyBtn">Copiar enlace</button>
+        <a class="btn ghost" href="./" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Abrir como cliente</a>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="nexa.js"></script>
+<script>
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id)};
+  var toast=nexaToast;
+
+  /* ---------- clave ---------- */
+  function unlock(){ $("pinForm").hidden=true; $("teamBody").hidden=false; render() }
+  if(Nexa.lsGet("nexa-team")===NEXA_PIN) unlock();
+  $("pinForm").onsubmit=function(e){ e.preventDefault();
+    if($("pin").value.trim()===NEXA_PIN){ Nexa.lsSet("nexa-team",NEXA_PIN); unlock() } else { toast("Clave incorrecta."); $("pin").select() } };
+
+  var url=location.href.replace(/[#?].*$/,"").replace(/equipo\.html$/,"");
+  $("clientUrl").textContent=url;
+  $("copyBtn").onclick=function(){
+    var done=function(){toast("Enlace copiado.")};
+    try{ navigator.clipboard.writeText(url).then(done,function(){ selectUrl() }) }catch(e){ selectUrl() }
+  };
+  function selectUrl(){ var r=document.createRange(); r.selectNodeContents($("clientUrl")); var s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Copia el enlace seleccionado.") }
+
+  /* ---------- pestañas ---------- */
+  var TABS=["bandeja","actividad","negocio"];
+  function showTab(n){ TABS.forEach(function(t){ $("t-"+t).setAttribute("aria-selected",String(t===n)); $("v-"+t).hidden=t!==n }) }
+  TABS.forEach(function(t,i){ var b=$("t-"+t); b.onclick=function(){showTab(t)};
+    b.onkeydown=function(e){ if(e.key==="ArrowRight"||e.key==="ArrowLeft"){ var n=TABS[(i+(e.key==="ArrowRight"?1:2))%3]; showTab(n); $("t-"+n).focus() } } });
+
+  /* ---------- bandeja ---------- */
+  var drafts={};
+  function render(){
+    var b=Nexa.biz(), all=Nexa.preguntas();
+    $("teamBiz").textContent=b.nombre?b.nombre+(b.giro?" · "+b.giro:""):"Sin datos del negocio";
+    $("setupBox").hidden=!!b.nombre || !Nexa.isOnline();
+    var nexa=all.filter(function(p){return p.status==="nexa"}).length;
+    var esc=all.filter(function(p){return p.status!=="nexa"}).length;
+    var pend=all.filter(function(p){return p.status==="pendiente"});
+    $("sAns").textContent=nexa; $("sEsc").textContent=esc; $("sMin").textContent=nexa*2;
+    $("pendBadge").hidden=!pend.length; $("pendBadge").textContent=pend.length;
+    renderTickets(pend); renderFeed(all); renderFaqs(); fillForm();
+  }
+  function renderTickets(pend){
+    var box=$("tickets"), active=document.activeElement&&document.activeElement.id;
+    box.textContent="";
+    if(!pend.length){ var e=document.createElement("div"); e.className="empty"; e.textContent="Sin preguntas pendientes. Cuando un cliente pregunte algo que NEXA no sabe, aparecerá aquí en vivo."; box.appendChild(e); return }
+    pend.forEach(function(p){
+      var t=document.createElement("form"); t.className="ticket";
+      var meta=document.createElement("small"); meta.textContent="Cliente · "+Nexa.ago(p.at);
+      var q=document.createElement("q"); q.textContent=p.q;
+      var lab=document.createElement("label"); lab.className="l"; lab.htmlFor="r-"+p.id; lab.textContent="Tu respuesta";
+      var inp=document.createElement("input"); inp.type="text"; inp.id="r-"+p.id; inp.maxLength=300; inp.placeholder="Escribe la respuesta para el cliente";
+      inp.value=drafts[p.id]||""; inp.oninput=function(){drafts[p.id]=inp.value};
+      var ck=document.createElement("label"); ck.className="check";
+      var cb=document.createElement("input"); cb.type="checkbox"; cb.checked=!/hablar con alguien/i.test(p.q); cb.id="c-"+p.id;
+      ck.append(cb,document.createTextNode("Que NEXA la aprenda para la próxima vez"));
+      var row=document.createElement("div"); row.className="row";
+      var send=document.createElement("button"); send.className="btn"; send.type="submit"; send.textContent="Responder";
+      var del=document.createElement("button"); del.className="btn ghost"; del.type="button"; del.textContent="Descartar";
+      row.append(send,del); t.append(meta,q,lab,inp,ck,row);
+      t.onsubmit=function(ev){ ev.preventDefault(); var a=inp.value.trim(); if(!a){inp.focus();return}
+        send.disabled=true;
+        Nexa.patch("/preguntas/"+p.id,{status:"respondida",answer:a,answeredAt:Date.now()}).then(function(){
+          delete drafts[p.id];
+          if(cb.checked) return Nexa.post("/faqs",{q:p.q,a:a,src:"equipo",at:Date.now()});
+        }).then(function(){ toast(cb.checked?"Enviado al cliente. NEXA ya lo aprendió.":"Enviado al cliente.") })
+          .catch(function(){ send.disabled=false; toast("No se pudo enviar. Revisa tu conexión.") });
+      };
+      del.onclick=function(){ Nexa.patch("/preguntas/"+p.id,{status:"descartada"}).catch(function(){toast("No se pudo descartar.")}) };
+      box.appendChild(t);
+    });
+    if(active && $(active)) $(active).focus();
+  }
+  function renderFeed(all){
+    var box=$("feed"); box.textContent="";
+    var list=all.slice().reverse().slice(0,40);
+    if(!list.length){ var e=document.createElement("div"); e.className="empty"; e.textContent="Todavía no hay conversaciones. Abre la página del cliente y haz una pregunta."; box.appendChild(e); return }
+    var map={nexa:["nexa","NEXA"],pendiente:["pend","Pendiente"],respondida:["team","Equipo"],descartada:["pend","Descartada"]};
+    list.forEach(function(p){
+      var r=document.createElement("div"); r.className="fi";
+      var m=map[p.status]||map.pendiente; var pill=document.createElement("span"); pill.className="pill "+m[0]; pill.textContent=m[1];
+      var q=document.createElement("p"); q.textContent=p.q+" · "+Nexa.ago(p.at);
+      r.append(pill,q);
+      if(p.answer){ var a=document.createElement("p"); a.className="a"; a.textContent=p.answer; r.appendChild(a) }
+      box.appendChild(r);
+    });
+  }
+
+  /* ---------- mi negocio ---------- */
+  var F={fNombre:"nombre",fGiro:"giro",fHorario:"horario",fTel:"tel",fDir:"dir",fProd:"prod",fExtra:"extra"};
+  var dirty=false;
+  Object.keys(F).forEach(function(id){ $(id).addEventListener("input",function(){dirty=true}) });
+  function fillForm(){ if(dirty) return; var b=Nexa.biz(); Object.keys(F).forEach(function(id){ if(document.activeElement!==$(id)) $(id).value=b[F[id]]||"" }) }
+  $("bizForm").onsubmit=function(ev){ ev.preventDefault();
+    var nb={}; Object.keys(F).forEach(function(id){ nb[F[id]]=$(id).value.trim() });
+    Nexa.put("/config",nb).then(function(){ dirty=false; toast("Guardado. Tus clientes ya ven los cambios.") }).catch(function(){ toast("No se pudo guardar. Revisa tu conexión.") });
+  };
+  function renderFaqs(){
+    var box=$("faqList"), fs=Nexa.faqs(); box.textContent="";
+    if(!fs.length){ var e=document.createElement("div"); e.className="empty"; e.textContent="Aún no hay preguntas frecuentes."; box.appendChild(e); return }
+    fs.forEach(function(f){
+      var r=document.createElement("div"); r.className="faq"; var d=document.createElement("div");
+      var s=document.createElement("span"); s.className="src"; s.textContent=f.src==="equipo"?"Aprendida de tu respuesta":"Agregada por ti";
+      var q=document.createElement("p"); q.textContent=f.q; var a=document.createElement("p"); a.className="a"; a.textContent=f.a;
+      d.append(s,q,a);
+      var x=document.createElement("button"); x.type="button"; x.className="x"; x.textContent="×"; x.setAttribute("aria-label","Borrar: "+f.q);
+      x.onclick=function(){ Nexa.del("/faqs/"+f.id).catch(function(){toast("No se pudo borrar.")}) };
+      r.append(d,x); box.appendChild(r);
+    });
+  }
+  $("addFaq").onclick=function(){ var q=$("nQ").value.trim(), a=$("nA").value.trim(); if(!q||!a){ toast("Escribe la pregunta y la respuesta."); return }
+    Nexa.post("/faqs",{q:q,a:a,src:"negocio",at:Date.now()}).then(function(){ $("nQ").value=""; $("nA").value=""; toast("Pregunta agregada.") }).catch(function(){toast("No se pudo agregar.")}) };
+  $("seedBtn").onclick=function(){
+    Nexa.put("/config",{nombre:"Café Central",giro:"Cafetería",horario:"Lunes a sábado de 8:00 a 20:00",tel:"55 1234 5678 (WhatsApp)",dir:"[Dirección de ejemplo]",
+      prod:"Latte - $60\nAmericano - $40\nCapuchino - $55\nChocolate caliente - $50\nCroissant - $35\nPan de elote - $30",extra:"Aceptamos efectivo y tarjeta. Tenemos wifi gratis para clientes."})
+    .then(function(){ return Nexa.post("/faqs",{q:"¿Tienen servicio a domicilio?",a:"Por ahora no tenemos servicio a domicilio, pero puedes pedir para llevar.",src:"negocio",at:Date.now()}) })
+    .then(function(){ toast("Ejemplo cargado.") }).catch(function(){ toast("No se pudo cargar. Revisa la conexión.") });
+  };
+
+  /* ---------- conexión ---------- */
+  var tag=$("liveTag");
+  function status(s){
+    var txt={on:"Conectado en vivo",off:"Sin conexión",denied:"Base de datos bloqueada",setup:"Falta conectar la base de datos"}[s]||s;
+    tag.className="live"+(s==="on"?"":" off"); tag.lastChild.textContent=txt; render();
+  }
+  Nexa.onChange(function(){ if(!$("teamBody").hidden) render() });
+  Nexa.connect(status);
+})();
+</script>
+</body>
+</html>

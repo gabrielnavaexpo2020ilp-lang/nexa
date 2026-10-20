@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NEXA · Asistente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <article class="panel site">
+    <div class="hero">
+      <span class="eyebrow" id="siteGiro">Cargando…</span>
+      <h1 id="siteName">&nbsp;</h1>
+      <div class="facts" id="siteFacts"></div>
+    </div>
+    <div class="menu-list">
+      <h2>Menú</h2>
+      <div id="siteMenu"></div>
+      <p class="extra" id="siteExtra" hidden></p>
+    </div>
+  </article>
+  <p class="powered">¿Dudas? Toca el círculo para hablar con nuestro asistente.</p>
+</div>
+
+<section class="widget" id="widget" aria-label="Chat con el asistente" hidden>
+  <div class="chat-head">
+    <div class="orb" aria-hidden="true"></div>
+    <div><b id="chatName">Asistente</b><span>Asistente NEXA · responde al instante</span></div>
+    <button class="x" id="closeChat" type="button" aria-label="Cerrar chat">×</button>
+  </div>
+  <div class="log" id="log" aria-live="polite"></div>
+  <div class="opts" id="opts" aria-label="Opciones"></div>
+  <form class="composer" id="askForm">
+    <label for="q" class="vh">Tu pregunta</label>
+    <input type="text" id="q" placeholder="Escribe tu pregunta…" autocomplete="off" maxlength="300">
+    <button class="btn" type="submit" id="sendBtn">Enviar</button>
+  </form>
+</section>
+<button class="fab" id="fab" type="button" aria-label="Abrir chat" aria-expanded="false" aria-controls="widget">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+  <span class="dot" id="fabDot" hidden></span>
+</button>
+<div class="toast" id="toast" hidden></div>
+
+<script src="nexa.js"></script>
+<script>
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id)};
+  var sid=Nexa.lsGet("nexa-sid");
+  if(!sid){ sid="c"+Math.random().toString(36).slice(2,10)+Date.now().toString(36); Nexa.lsSet("nexa-sid",sid) }
+  var L=Nexa.lsGet("nexa-chat")||{chat:[],shown:[],open:true,unread:false};
+  function saveL(){ Nexa.lsSet("nexa-chat",L) }
+  var busy=false, typingEl=null;
+
+  function scrollLog(){ var l=$("log"); l.scrollTop=l.scrollHeight }
+  function push(m){ L.chat.push(m); if(L.chat.length>80) L.chat=L.chat.slice(-80); saveL(); renderChat() }
+  function showTyping(on){
+    if(on){ typingEl=document.createElement("div"); typingEl.className="typing"; typingEl.textContent="Escribiendo…"; $("log").appendChild(typingEl); scrollLog() }
+    else if(typingEl){ typingEl.remove(); typingEl=null }
+  }
+  function record(q,status,ans){
+    return Nexa.post("/preguntas",{q:q,sid:sid,at:Date.now(),status:status,answer:ans||""}).catch(function(){});
+  }
+  function ask(q,toTeam){
+    q=String(q||"").trim(); if(!q||busy) return;
+    busy=true; $("sendBtn").disabled=true; $("q").value="";
+    push({k:"u",text:q}); showTyping(true);
+    setTimeout(function(){
+      showTyping(false);
+      var ans = toTeam ? null : Nexa.answer(q);
+      if(ans){ push({k:"n",text:ans}); record(q,"nexa",ans) }
+      else if(Nexa.isOnline()){
+        push({k:"n",text: toTeam ? "Claro, ya avisé al equipo. Su respuesta aparecerá aquí." : "No tengo ese dato y prefiero no inventarlo. Ya le pregunté al equipo; su respuesta aparecerá aquí."});
+        push({k:"s",text:"Enviado al equipo"});
+        record(q,"pendiente","");
+      } else {
+        var t=Nexa.biz().tel;
+        push({k:"n",text:"No tengo ese dato y no pude avisar al equipo en este momento. "+(t?"Puedes contactar al negocio al "+t+".":"Intenta de nuevo en un rato.")});
+      }
+      busy=false; $("sendBtn").disabled=false;
+    },550);
+  }
+  var OPTS=[
+    {l:"Ver menú", q:"¿Qué tienen en el menú?", f:Nexa.menuText},
+    {l:"Horario", q:"¿Cuál es su horario?", f:function(){var h=Nexa.biz().horario;return h?"Nuestro horario es "+Nexa.lc1(h)+".":""}},
+    {l:"Ubicación", q:"¿Dónde están?", f:function(){var d=Nexa.biz().dir;return d?"Estamos en "+d+".":""}},
+    {l:"Contacto", q:"¿Cómo los contacto?", f:function(){var t=Nexa.biz().tel;return t?"Puedes escribirnos o llamarnos al "+t+".":""}},
+    {l:"Hablar con el equipo", q:"Quiero hablar con alguien del equipo", team:true}
+  ];
+  function pickOpt(o){
+    if(busy) return;
+    if(o.team){ ask(o.q,true); return }
+    var t=o.f(); if(!t){ ask(o.q); return }
+    busy=true; push({k:"u",text:o.l}); showTyping(true);
+    setTimeout(function(){ showTyping(false); push({k:"n",text:t}); record(o.q,"nexa",t); busy=false },450);
+  }
+  (function(){ var s=$("opts"); OPTS.forEach(function(o){ var b=document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=o.l; b.onclick=function(){pickOpt(o)}; s.appendChild(b) }) })();
+
+  function renderChat(){
+    var log=$("log"); log.textContent="";
+    var name=Nexa.biz().nombre||"este negocio";
+    [{k:"n",text:"¡Hola! Soy el asistente de "+name+". Elige una opción o escríbeme lo que quieras saber."}].concat(L.chat).forEach(function(m){
+      var d=document.createElement("div"); d.className = m.k==="s" ? "sys" : "msg "+m.k;
+      if(m.k==="t"){ var t=document.createElement("span"); t.className="tag"; t.textContent="Respuesta del equipo"; d.appendChild(t) }
+      d.appendChild(document.createTextNode(m.text)); log.appendChild(d);
+    });
+    if(typingEl) log.appendChild(typingEl);
+    scrollLog();
+  }
+  function renderFab(){
+    $("widget").hidden=!L.open;
+    $("fab").setAttribute("aria-expanded",String(!!L.open));
+    $("fab").setAttribute("aria-label",L.open?"Cerrar chat":"Abrir chat");
+    if(L.open) L.unread=false;
+    $("fabDot").hidden=!L.unread;
+    if(L.open) scrollLog();
+  }
+  $("fab").onclick=function(){ L.open=!L.open; saveL(); renderFab(); if(L.open) $("q").focus() };
+  $("closeChat").onclick=function(){ L.open=false; saveL(); renderFab(); $("fab").focus() };
+  $("askForm").onsubmit=function(e){ e.preventDefault(); ask($("q").value) };
+
+  function renderSite(){
+    var b=Nexa.biz();
+    document.title=(b.nombre||"NEXA")+" · Asistente";
+    $("siteGiro").textContent=b.giro||(b.nombre?"Bienvenido":"Este negocio aún no carga sus datos");
+    $("siteName").textContent=b.nombre||"Mi negocio";
+    $("chatName").textContent=b.nombre||"Asistente";
+    var f=$("siteFacts"); f.textContent="";
+    [b.horario,b.dir,b.tel].filter(Boolean).forEach(function(t){ var s=document.createElement("span"); s.textContent=t; f.appendChild(s) });
+    var m=$("siteMenu"); m.textContent=""; var ps=Nexa.products();
+    if(!ps.length){ var e=document.createElement("p"); e.className="sub"; e.textContent="El menú aparecerá aquí cuando el negocio lo agregue."; m.appendChild(e) }
+    ps.forEach(function(p){ var r=document.createElement("div"); r.className="item"; var a=document.createElement("span"); a.textContent=p.name; var c=document.createElement("span"); c.textContent=p.price; r.append(a,c); m.appendChild(r) });
+    $("siteExtra").textContent=b.extra; $("siteExtra").hidden=!b.extra;
+  }
+  function checkAnswers(){
+    var changed=false;
+    Nexa.preguntas().forEach(function(p){
+      if(p.sid===sid && p.status==="respondida" && p.answer && L.shown.indexOf(p.id)<0){ L.shown.push(p.id); L.chat.push({k:"t",text:p.answer}); changed=true }
+    });
+    if(changed){ if(!L.open) L.unread=true; else nexaToast("El equipo respondió tu pregunta."); saveL(); renderChat(); renderFab() }
+  }
+  var lastName=null;
+  Nexa.onChange(function(){ renderSite(); var n=Nexa.biz().nombre; if(n!==lastName){ lastName=n; renderChat() } checkAnswers() });
+  renderSite(); renderChat(); renderFab();
+  Nexa.connect(function(s){ if(s==="setup"){ $("siteGiro").textContent="Falta conectar la base de datos" } });
+})();
+</script>
+</body>
+</html>
