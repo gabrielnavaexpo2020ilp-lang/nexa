@@ -29,20 +29,37 @@ var Nexa = (function(){
     } else if(data===null) delete node[last];
     else node[last]=data;
   }
+  /* Conexión: primero en vivo (streaming). Si no llega nada en 6 s o se cae,
+     se revisa la base cada 3 s para que siempre funcione. */
+  var statusCb=null, gotStream=false, pollT=null;
+  function setStatus(s){ statusCb && statusCb(s) }
+  function refresh(){
+    return fetch(base + "/.json", {cache:"no-store"}).then(function(r){
+      if(r.status===401||r.status===403){ online=false; setStatus("denied"); return }
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json().then(function(d){ tree=d||{}; online=true; setStatus("on"); emit() });
+    }).catch(function(){ online=false; setStatus("off") });
+  }
+  function startPolling(){ if(pollT) return; refresh(); pollT=setInterval(refresh, 3000) }
   function connect(onStatus){
-    if(!ready){ onStatus && onStatus("setup"); return }
+    statusCb=onStatus;
+    if(!ready){ setStatus("setup"); return }
+    refresh();
+    if(typeof EventSource==="undefined"){ startPolling(); return }
     try{ es && es.close() }catch(e){}
-    es = new EventSource(base + "/.json");
-    es.addEventListener("put", function(e){ var m=JSON.parse(e.data); setAt(m.path, m.data, false); online=true; onStatus&&onStatus("on"); emit() });
-    es.addEventListener("patch", function(e){ var m=JSON.parse(e.data); setAt(m.path, m.data, true); emit() });
-    es.addEventListener("cancel", function(){ online=false; onStatus&&onStatus("denied") });
-    es.addEventListener("auth_revoked", function(){ online=false; onStatus&&onStatus("denied") });
-    es.onerror = function(){ online=false; onStatus&&onStatus("off") };
+    try{ es = new EventSource(base + "/.json") }catch(e){ startPolling(); return }
+    es.addEventListener("put", function(e){ var m=JSON.parse(e.data); gotStream=true; setAt(m.path, m.data, false); online=true; setStatus("on"); emit() });
+    es.addEventListener("patch", function(e){ var m=JSON.parse(e.data); gotStream=true; setAt(m.path, m.data, true); emit() });
+    es.addEventListener("cancel", function(){ startPolling() });
+    es.addEventListener("auth_revoked", function(){ startPolling() });
+    es.onerror = function(){ if(!gotStream || es.readyState===2) startPolling() };
+    setTimeout(function(){ if(!gotStream) startPolling() }, 6000);
   }
   function req(method, path, body){
     if(!ready) return Promise.reject(new Error("setup"));
     return fetch(base + path + ".json", {method:method, headers:{"Content-Type":"application/json"}, body: body===undefined?undefined:JSON.stringify(body)})
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json() });
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json() })
+      .then(function(d){ if(pollT || !gotStream) refresh(); return d });
   }
 
   /* ---------- texto ---------- */

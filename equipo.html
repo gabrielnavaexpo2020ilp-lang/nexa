@@ -121,7 +121,8 @@
   function unlock(){ $("pinForm").hidden=true; $("teamBody").hidden=false; render() }
   if(Nexa.lsGet("nexa-team")===NEXA_PIN) unlock();
   $("pinForm").onsubmit=function(e){ e.preventDefault();
-    if($("pin").value.trim()===NEXA_PIN){ Nexa.lsSet("nexa-team",NEXA_PIN); unlock() } else { toast("Clave incorrecta."); $("pin").select() } };
+    var v=$("pin").value.replace(/\D/g,"");
+    if(v===NEXA_PIN){ Nexa.lsSet("nexa-team",NEXA_PIN); unlock() } else { toast("Clave incorrecta. Escribe solo los 4 números."); $("pin").select() } };
 
   var url=location.href.replace(/[#?].*$/,"").replace(/equipo\.html$/,"");
   $("clientUrl").textContent=url;
