@@ -2,7 +2,7 @@
    Base de datos: Firebase Realtime Database por REST (sin SDK).
    Acceso del equipo: Firebase Authentication con correo y contraseña. */
 var NEXA_DB = "https://nexa-c5176-default-rtdb.firebaseio.com";
-var NEXA_API_KEY = "PEGA_AQUI_TU_CLAVE_DE_API_WEB";
+var NEXA_API_KEY = "AIzaSyBY_HJBa2I5LD_gXyXjtgCNMS13lFiZ6Gg";
 var NEXA_AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword";
 var NEXA_TOKEN_URL = "https://securetoken.googleapis.com/v1/token";
 
