@@ -19,14 +19,16 @@
         <div class="biz" id="teamBiz"></div>
       </div>
     </div>
-    <span class="live off" id="liveTag"><i></i><span>Conectando…</span></span>
+    <div class="row"><span class="live off" id="liveTag"><i></i><span>Conectando…</span></span><button class="btn ghost" type="button" id="logoutBtn" hidden style="min-height:36px;padding:0 12px">Salir</button></div>
   </div>
 
-  <form class="panel pad pin" id="pinForm">
+  <form class="panel pad pin" id="loginForm">
     <h2>Panel del equipo</h2>
-    <p class="sub">Escribe la clave del equipo para ver y contestar las preguntas de tus clientes.</p>
-    <div><label class="l" for="pin">Clave</label><input type="text" id="pin" inputmode="numeric" autocomplete="off"></div>
-    <div class="row"><button class="btn" type="submit">Entrar</button></div>
+    <p class="sub">Entra con el correo y la contraseña que el dueño del negocio dio de alta para el equipo.</p>
+    <div><label class="l" for="email">Correo</label><input type="text" id="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
+    <div><label class="l" for="pass">Contraseña</label><input type="password" id="pass" autocomplete="current-password" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;min-height:44px"></div>
+    <div class="row"><button class="btn" type="submit" id="loginBtn">Entrar</button></div>
+    <p class="sub" id="loginErr" hidden></p>
   </form>
 
   <div id="teamBody" style="display:flex;flex-direction:column;gap:14px" hidden>
@@ -116,19 +118,27 @@
   "use strict";
   var $=function(id){return document.getElementById(id)};
   var toast=nexaToast;
+  var all=[], started=false, sub=null;
 
-  /* ---------- clave ---------- */
-  function unlock(){ $("pinForm").hidden=true; $("teamBody").hidden=false; render() }
-  if(Nexa.lsGet("nexa-team")===NEXA_PIN) unlock();
-  $("pinForm").onsubmit=function(e){ e.preventDefault();
-    var v=$("pin").value.replace(/\D/g,"");
-    if(v===NEXA_PIN){ Nexa.lsSet("nexa-team",NEXA_PIN); unlock() } else { toast("Clave incorrecta. Escribe solo los 4 números."); $("pin").select() } };
+  /* ---------- inicio de sesión ---------- */
+  var ERR={EMAIL_NOT_FOUND:"Ese correo no está dado de alta en el equipo.",INVALID_PASSWORD:"Contraseña incorrecta.",INVALID_LOGIN_CREDENTIALS:"Correo o contraseña incorrectos.",
+    INVALID_EMAIL:"Escribe un correo válido.",USER_DISABLED:"Esta cuenta está desactivada.",TOO_MANY_ATTEMPTS_TRY_LATER:"Demasiados intentos. Espera unos minutos.",
+    OPERATION_NOT_ALLOWED:"Falta activar el inicio con correo en Firebase.",API_KEY_INVALID:"Falta configurar la clave de Firebase."};
+  function showPanel(){ $("loginForm").hidden=true; $("teamBody").hidden=false; $("logoutBtn").hidden=false; start() }
+  function showLogin(msg){ $("loginForm").hidden=false; $("teamBody").hidden=true; $("logoutBtn").hidden=true; if(msg){ $("loginErr").textContent=msg; $("loginErr").hidden=false } }
+  $("loginForm").onsubmit=function(e){ e.preventDefault();
+    var em=$("email").value.trim(), pw=$("pass").value; if(!em||!pw){ showLogin("Escribe tu correo y contraseña."); return }
+    $("loginBtn").disabled=true; $("loginErr").hidden=true;
+    Nexa.signIn(em,pw).then(function(){ $("pass").value=""; showPanel() })
+      .catch(function(code){ var k=String(code).split(" ")[0]; showLogin(ERR[k]||"No se pudo entrar ("+k+"). Revisa tu conexión.") })
+      .finally(function(){ $("loginBtn").disabled=false });
+  };
+  $("logoutBtn").onclick=function(){ Nexa.signOut(); location.reload() };
 
   var url=location.href.replace(/[#?].*$/,"").replace(/equipo\.html$/,"");
   $("clientUrl").textContent=url;
   $("copyBtn").onclick=function(){
-    var done=function(){toast("Enlace copiado.")};
-    try{ navigator.clipboard.writeText(url).then(done,function(){ selectUrl() }) }catch(e){ selectUrl() }
+    try{ navigator.clipboard.writeText(url).then(function(){toast("Enlace copiado.")},selectUrl) }catch(e){ selectUrl() }
   };
   function selectUrl(){ var r=document.createRange(); r.selectNodeContents($("clientUrl")); var s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Copia el enlace seleccionado.") }
 
@@ -138,30 +148,49 @@
   TABS.forEach(function(t,i){ var b=$("t-"+t); b.onclick=function(){showTab(t)};
     b.onkeydown=function(e){ if(e.key==="ArrowRight"||e.key==="ArrowLeft"){ var n=TABS[(i+(e.key==="ArrowRight"?1:2))%3]; showTab(n); $("t-"+n).focus() } } });
 
+  /* ---------- conexión ---------- */
+  var tag=$("liveTag");
+  function status(s){
+    if(s==="signedout"){ showLogin("Tu sesión terminó. Vuelve a entrar."); return }
+    var txt={on:"Conectado en vivo",off:"Sin conexión",denied:"Sin permiso: revisa las reglas de Firebase"}[s]||s;
+    tag.className="live"+(s==="on"?"":" off"); tag.lastChild.textContent=txt;
+  }
+  function start(){
+    if(started) return; started=true;
+    Nexa.watchBusiness(render, null);
+    sub=Nexa.subscribe("/preguntas", function(d){
+      all=[]; d=d||{};
+      Object.keys(d).forEach(function(sid){ var c=d[sid]; if(!c||typeof c!=="object") return; Object.keys(c).forEach(function(id){ var p=c[id]; if(p&&typeof p==="object"&&p.q) all.push(Object.assign({id:id,sid:sid},p)) }) });
+      all.sort(function(a,b){return (a.at||0)-(b.at||0)}); render();
+    }, status, true);
+  }
+  function write(p){ return p.then(function(r){ sub&&sub.refresh(); return r }) }
+
   /* ---------- bandeja ---------- */
   var drafts={};
   function render(){
-    var b=Nexa.biz(), all=Nexa.preguntas();
+    var b=Nexa.biz();
     $("teamBiz").textContent=b.nombre?b.nombre+(b.giro?" · "+b.giro:""):"Sin datos del negocio";
-    $("setupBox").hidden=!!b.nombre || !Nexa.isOnline();
+    $("setupBox").hidden=!!b.nombre;
     var nexa=all.filter(function(p){return p.status==="nexa"}).length;
     var esc=all.filter(function(p){return p.status!=="nexa"}).length;
     var pend=all.filter(function(p){return p.status==="pendiente"});
     $("sAns").textContent=nexa; $("sEsc").textContent=esc; $("sMin").textContent=nexa*2;
     $("pendBadge").hidden=!pend.length; $("pendBadge").textContent=pend.length;
-    renderTickets(pend); renderFeed(all); renderFaqs(); fillForm();
+    renderTickets(pend); renderFeed(); renderFaqs(); fillForm();
   }
   function renderTickets(pend){
     var box=$("tickets"), active=document.activeElement&&document.activeElement.id;
     box.textContent="";
     if(!pend.length){ var e=document.createElement("div"); e.className="empty"; e.textContent="Sin preguntas pendientes. Cuando un cliente pregunte algo que NEXA no sabe, aparecerá aquí en vivo."; box.appendChild(e); return }
     pend.forEach(function(p){
+      var key=p.sid+"/"+p.id;
       var t=document.createElement("form"); t.className="ticket";
       var meta=document.createElement("small"); meta.textContent="Cliente · "+Nexa.ago(p.at);
       var q=document.createElement("q"); q.textContent=p.q;
       var lab=document.createElement("label"); lab.className="l"; lab.htmlFor="r-"+p.id; lab.textContent="Tu respuesta";
       var inp=document.createElement("input"); inp.type="text"; inp.id="r-"+p.id; inp.maxLength=300; inp.placeholder="Escribe la respuesta para el cliente";
-      inp.value=drafts[p.id]||""; inp.oninput=function(){drafts[p.id]=inp.value};
+      inp.value=drafts[key]||""; inp.oninput=function(){drafts[key]=inp.value};
       var ck=document.createElement("label"); ck.className="check";
       var cb=document.createElement("input"); cb.type="checkbox"; cb.checked=!/hablar con alguien/i.test(p.q); cb.id="c-"+p.id;
       ck.append(cb,document.createTextNode("Que NEXA la aprenda para la próxima vez"));
@@ -171,18 +200,18 @@
       row.append(send,del); t.append(meta,q,lab,inp,ck,row);
       t.onsubmit=function(ev){ ev.preventDefault(); var a=inp.value.trim(); if(!a){inp.focus();return}
         send.disabled=true;
-        Nexa.patch("/preguntas/"+p.id,{status:"respondida",answer:a,answeredAt:Date.now()}).then(function(){
-          delete drafts[p.id];
-          if(cb.checked) return Nexa.post("/faqs",{q:p.q,a:a,src:"equipo",at:Date.now()});
+        write(Nexa.patch("/preguntas/"+key,{status:"respondida",answer:a,answeredAt:Date.now()},true)).then(function(){
+          delete drafts[key];
+          if(cb.checked) return Nexa.post("/faqs",{q:p.q,a:a,src:"equipo",at:Date.now()},true);
         }).then(function(){ toast(cb.checked?"Enviado al cliente. NEXA ya lo aprendió.":"Enviado al cliente.") })
           .catch(function(){ send.disabled=false; toast("No se pudo enviar. Revisa tu conexión.") });
       };
-      del.onclick=function(){ Nexa.patch("/preguntas/"+p.id,{status:"descartada"}).catch(function(){toast("No se pudo descartar.")}) };
+      del.onclick=function(){ write(Nexa.patch("/preguntas/"+key,{status:"descartada"},true)).catch(function(){toast("No se pudo descartar.")}) };
       box.appendChild(t);
     });
     if(active && $(active)) $(active).focus();
   }
-  function renderFeed(all){
+  function renderFeed(){
     var box=$("feed"); box.textContent="";
     var list=all.slice().reverse().slice(0,40);
     if(!list.length){ var e=document.createElement("div"); e.className="empty"; e.textContent="Todavía no hay conversaciones. Abre la página del cliente y haz una pregunta."; box.appendChild(e); return }
@@ -204,7 +233,7 @@
   function fillForm(){ if(dirty) return; var b=Nexa.biz(); Object.keys(F).forEach(function(id){ if(document.activeElement!==$(id)) $(id).value=b[F[id]]||"" }) }
   $("bizForm").onsubmit=function(ev){ ev.preventDefault();
     var nb={}; Object.keys(F).forEach(function(id){ nb[F[id]]=$(id).value.trim() });
-    Nexa.put("/config",nb).then(function(){ dirty=false; toast("Guardado. Tus clientes ya ven los cambios.") }).catch(function(){ toast("No se pudo guardar. Revisa tu conexión.") });
+    Nexa.put("/config",nb,true).then(function(){ dirty=false; toast("Guardado. Tus clientes ya ven los cambios.") }).catch(function(){ toast("No se pudo guardar. Revisa tu conexión.") });
   };
   function renderFaqs(){
     var box=$("faqList"), fs=Nexa.faqs(); box.textContent="";
@@ -215,27 +244,20 @@
       var q=document.createElement("p"); q.textContent=f.q; var a=document.createElement("p"); a.className="a"; a.textContent=f.a;
       d.append(s,q,a);
       var x=document.createElement("button"); x.type="button"; x.className="x"; x.textContent="×"; x.setAttribute("aria-label","Borrar: "+f.q);
-      x.onclick=function(){ Nexa.del("/faqs/"+f.id).catch(function(){toast("No se pudo borrar.")}) };
+      x.onclick=function(){ Nexa.del("/faqs/"+f.id,true).catch(function(){toast("No se pudo borrar.")}) };
       r.append(d,x); box.appendChild(r);
     });
   }
   $("addFaq").onclick=function(){ var q=$("nQ").value.trim(), a=$("nA").value.trim(); if(!q||!a){ toast("Escribe la pregunta y la respuesta."); return }
-    Nexa.post("/faqs",{q:q,a:a,src:"negocio",at:Date.now()}).then(function(){ $("nQ").value=""; $("nA").value=""; toast("Pregunta agregada.") }).catch(function(){toast("No se pudo agregar.")}) };
+    Nexa.post("/faqs",{q:q,a:a,src:"negocio",at:Date.now()},true).then(function(){ $("nQ").value=""; $("nA").value=""; toast("Pregunta agregada.") }).catch(function(){toast("No se pudo agregar.")}) };
   $("seedBtn").onclick=function(){
     Nexa.put("/config",{nombre:"Café Central",giro:"Cafetería",horario:"Lunes a sábado de 8:00 a 20:00",tel:"55 1234 5678 (WhatsApp)",dir:"[Dirección de ejemplo]",
-      prod:"Latte - $60\nAmericano - $40\nCapuchino - $55\nChocolate caliente - $50\nCroissant - $35\nPan de elote - $30",extra:"Aceptamos efectivo y tarjeta. Tenemos wifi gratis para clientes."})
-    .then(function(){ return Nexa.post("/faqs",{q:"¿Tienen servicio a domicilio?",a:"Por ahora no tenemos servicio a domicilio, pero puedes pedir para llevar.",src:"negocio",at:Date.now()}) })
+      prod:"Latte - $60\nAmericano - $40\nCapuchino - $55\nChocolate caliente - $50\nCroissant - $35\nPan de elote - $30",extra:"Aceptamos efectivo y tarjeta. Tenemos wifi gratis para clientes."},true)
+    .then(function(){ return Nexa.post("/faqs",{q:"¿Tienen servicio a domicilio?",a:"Por ahora no tenemos servicio a domicilio, pero puedes pedir para llevar.",src:"negocio",at:Date.now()},true) })
     .then(function(){ toast("Ejemplo cargado.") }).catch(function(){ toast("No se pudo cargar. Revisa la conexión.") });
   };
 
-  /* ---------- conexión ---------- */
-  var tag=$("liveTag");
-  function status(s){
-    var txt={on:"Conectado en vivo",off:"Sin conexión",denied:"Base de datos bloqueada",setup:"Falta conectar la base de datos"}[s]||s;
-    tag.className="live"+(s==="on"?"":" off"); tag.lastChild.textContent=txt; render();
-  }
-  Nexa.onChange(function(){ if(!$("teamBody").hidden) render() });
-  Nexa.connect(status);
+  if(Nexa.authed()) showPanel(); else showLogin();
 })();
 </script>
 </body>

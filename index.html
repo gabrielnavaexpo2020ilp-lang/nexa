@@ -63,7 +63,7 @@
     else if(typingEl){ typingEl.remove(); typingEl=null }
   }
   function record(q,status,ans){
-    return Nexa.post("/preguntas",{q:q,sid:sid,at:Date.now(),status:status,answer:ans||""}).catch(function(){});
+    return Nexa.post("/preguntas/"+sid,{q:q,at:Date.now(),status:status,answer:ans||""}).then(function(r){ mineSub&&mineSub.refresh(); return r });
   }
   function ask(q,toTeam){
     q=String(q||"").trim(); if(!q||busy) return;
@@ -72,14 +72,15 @@
     setTimeout(function(){
       showTyping(false);
       var ans = toTeam ? null : Nexa.answer(q);
-      if(ans){ push({k:"n",text:ans}); record(q,"nexa",ans) }
-      else if(Nexa.isOnline()){
-        push({k:"n",text: toTeam ? "Claro, ya avisé al equipo. Su respuesta aparecerá aquí." : "No tengo ese dato y prefiero no inventarlo. Ya le pregunté al equipo; su respuesta aparecerá aquí."});
-        push({k:"s",text:"Enviado al equipo"});
-        record(q,"pendiente","");
-      } else {
-        var t=Nexa.biz().tel;
-        push({k:"n",text:"No tengo ese dato y no pude avisar al equipo en este momento. "+(t?"Puedes contactar al negocio al "+t+".":"Intenta de nuevo en un rato.")});
+      if(ans){ push({k:"n",text:ans}); record(q,"nexa",ans).catch(function(){}) }
+      else {
+        record(q,"pendiente","").then(function(){
+          push({k:"n",text: toTeam ? "Claro, ya avisé al equipo. Su respuesta aparecerá aquí." : "No tengo ese dato y prefiero no inventarlo. Ya le pregunté al equipo; su respuesta aparecerá aquí."});
+          push({k:"s",text:"Enviado al equipo"});
+        }).catch(function(){
+          var t=Nexa.biz().tel;
+          push({k:"n",text:"No tengo ese dato y no pude avisar al equipo en este momento. "+(t?"Puedes contactar al negocio al "+t+".":"Intenta de nuevo en un rato.")});
+        });
       }
       busy=false; $("sendBtn").disabled=false;
     },550);
@@ -96,7 +97,7 @@
     if(o.team){ ask(o.q,true); return }
     var t=o.f(); if(!t){ ask(o.q); return }
     busy=true; push({k:"u",text:o.l}); showTyping(true);
-    setTimeout(function(){ showTyping(false); push({k:"n",text:t}); record(o.q,"nexa",t); busy=false },450);
+    setTimeout(function(){ showTyping(false); push({k:"n",text:t}); record(o.q,"nexa",t).catch(function(){}); busy=false },450);
   }
   (function(){ var s=$("opts"); OPTS.forEach(function(o){ var b=document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=o.l; b.onclick=function(){pickOpt(o)}; s.appendChild(b) }) })();
 
@@ -138,15 +139,16 @@
   }
   function checkAnswers(){
     var changed=false;
-    Nexa.preguntas().forEach(function(p){
-      if(p.sid===sid && p.status==="respondida" && p.answer && L.shown.indexOf(p.id)<0){ L.shown.push(p.id); L.chat.push({k:"t",text:p.answer}); changed=true }
+    Object.keys(mine||{}).forEach(function(id){ var p=Object.assign({id:id},mine[id]);
+      if(p.status==="respondida" && p.answer && L.shown.indexOf(p.id)<0){ L.shown.push(p.id); L.chat.push({k:"t",text:p.answer}); changed=true }
     });
     if(changed){ if(!L.open) L.unread=true; else nexaToast("El equipo respondió tu pregunta."); saveL(); renderChat(); renderFab() }
   }
-  var lastName=null;
-  Nexa.onChange(function(){ renderSite(); var n=Nexa.biz().nombre; if(n!==lastName){ lastName=n; renderChat() } checkAnswers() });
+  var lastName=null, mine={}, mineSub=null;
   renderSite(); renderChat(); renderFab();
-  Nexa.connect(function(s){ if(s==="setup"){ $("siteGiro").textContent="Falta conectar la base de datos" } });
+  Nexa.watchBusiness(function(){ renderSite(); var n=Nexa.biz().nombre; if(n!==lastName){ lastName=n; renderChat() } },
+    function(s){ if(s==="off" && !Nexa.biz().nombre) $("siteGiro").textContent="Sin conexión. Revisa tu internet." });
+  mineSub=Nexa.subscribe("/preguntas/"+sid, function(d){ mine=d||{}; checkAnswers() }, null, false);
 })();
 </script>
 </body>

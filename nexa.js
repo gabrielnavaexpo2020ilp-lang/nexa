@@ -1,66 +1,100 @@
 /* NEXA — núcleo compartido por la página del cliente (index.html) y el panel del equipo (equipo.html).
-   Base de datos: Firebase Realtime Database por REST + streaming (sin SDK). */
+   Base de datos: Firebase Realtime Database por REST (sin SDK).
+   Acceso del equipo: Firebase Authentication con correo y contraseña. */
 var NEXA_DB = "https://nexa-c5176-default-rtdb.firebaseio.com";
-var NEXA_PIN = "2026";                         // clave para entrar al panel del equipo
+var NEXA_API_KEY = "PEGA_AQUI_TU_CLAVE_DE_API_WEB";
+var NEXA_AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword";
+var NEXA_TOKEN_URL = "https://securetoken.googleapis.com/v1/token";
 
 var Nexa = (function(){
   "use strict";
   var base = String(NEXA_DB).replace(/\/+$/,"");
-  var ready = /^https:\/\/.+firebase(io\.com|database\.app)$/.test(base);
-  var tree = {}, listeners = [], es = null, online = false;
+  var ready = /^https?:\/\/.+/.test(base);
 
-  function emit(){ listeners.forEach(function(f){ try{ f(tree) }catch(e){ console.error(e) } }) }
-  function setAt(path, data, merge){
-    var parts = path.split("/").filter(Boolean);
-    if(!parts.length){
-      if(merge && data){ Object.keys(data).forEach(function(k){ setAt("/"+k, data[k]) }) }
-      else tree = data || {};
-      return;
+  /* ---------- sesión del equipo ---------- */
+  var S = lsGet("nexa-auth"); // {idToken, refreshToken, exp, email}
+  function authed(){ return !!(S && S.refreshToken) }
+  function token(){
+    if(!authed()) return Promise.resolve(null);
+    if(S.idToken && Date.now() < S.exp - 60000) return Promise.resolve(S.idToken);
+    return fetch(NEXA_TOKEN_URL + "?key=" + encodeURIComponent(NEXA_API_KEY), {
+      method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:"grant_type=refresh_token&refresh_token=" + encodeURIComponent(S.refreshToken)
+    }).then(function(r){ return r.json().then(function(d){ if(!r.ok) throw d; return d }) })
+      .then(function(d){ S.idToken=d.id_token; S.refreshToken=d.refresh_token; S.exp=Date.now()+Number(d.expires_in)*1000; lsSet("nexa-auth",S); return S.idToken })
+      .catch(function(){ signOut(); return null });
+  }
+  function signIn(email, pass){
+    return fetch(NEXA_AUTH_URL + "?key=" + encodeURIComponent(NEXA_API_KEY), {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email:email, password:pass, returnSecureToken:true})
+    }).then(function(r){ return r.json().then(function(d){ if(!r.ok) throw (d && d.error && d.error.message) || "ERROR"; return d }) })
+      .then(function(d){ S={idToken:d.idToken, refreshToken:d.refreshToken, exp:Date.now()+Number(d.expiresIn)*1000, email:d.email}; lsSet("nexa-auth",S); return S.email });
+  }
+  function signOut(){ S=null; try{ localStorage.removeItem("nexa-auth") }catch(e){} }
+  function url(path, tok){ return base + path + ".json" + (tok ? "?auth=" + encodeURIComponent(tok) : "") }
+
+  /* ---------- lecturas en vivo: streaming y, si falla, revisión cada 3 s ---------- */
+  function subscribe(path, cb, onStatus, useAuth){
+    var data = null, es = null, pollT = null, got = false, stopped = false;
+    function status(s){ onStatus && onStatus(s) }
+    function setAt(rel, val, merge){
+      var parts = rel.split("/").filter(Boolean);
+      if(!parts.length){
+        if(merge && val){ data = (data && typeof data==="object") ? data : {}; Object.keys(val).forEach(function(k){ setAt("/"+k, val[k], false) }) }
+        else data = val;
+        return;
+      }
+      if(!data || typeof data!=="object") data = {};
+      var node = data;
+      for(var i=0;i<parts.length-1;i++){ if(!node[parts[i]] || typeof node[parts[i]]!=="object") node[parts[i]]={}; node=node[parts[i]] }
+      var last = parts[parts.length-1];
+      if(merge && val && typeof val==="object"){ Object.keys(val).forEach(function(k){ setAt(rel.replace(/\/$/,"")+"/"+k, val[k], false) }) }
+      else if(val===null) delete node[last];
+      else node[last] = val;
     }
-    var node = tree;
-    for(var i=0;i<parts.length-1;i++){
-      if(typeof node[parts[i]]!=="object" || node[parts[i]]===null) node[parts[i]]={};
-      node = node[parts[i]];
+    function poll(){
+      return token().then(function(t){
+        if(useAuth && !t){ status("signedout"); return }
+        return fetch(url(path, useAuth ? t : null), {cache:"no-store"}).then(function(r){
+          if(r.status===401||r.status===403){ status("denied"); return }
+          if(!r.ok) throw 0;
+          return r.json().then(function(d){ data=d; status("on"); cb(data) });
+        });
+      }).catch(function(){ status("off") });
     }
-    var last = parts[parts.length-1];
-    if(merge && data && typeof data==="object"){
-      if(typeof node[last]!=="object"||node[last]===null) node[last]={};
-      Object.keys(data).forEach(function(k){ setAt("/"+parts.join("/")+"/"+k, data[k]) });
-    } else if(data===null) delete node[last];
-    else node[last]=data;
+    function startPoll(){ if(pollT||stopped) return; poll(); pollT=setInterval(poll, 3000) }
+    function open(){
+      if(stopped) return;
+      token().then(function(t){
+        if(useAuth && !t){ status("signedout"); return }
+        if(typeof EventSource==="undefined"){ startPoll(); return }
+        try{ es && es.close() }catch(e){}
+        try{ es = new EventSource(url(path, useAuth ? t : null)) }catch(e){ startPoll(); return }
+        es.addEventListener("put", function(e){ var m=JSON.parse(e.data); got=true; setAt(m.path, m.data, false); status("on"); cb(data) });
+        es.addEventListener("patch", function(e){ var m=JSON.parse(e.data); got=true; setAt(m.path, m.data, true); cb(data) });
+        es.addEventListener("cancel", function(){ try{es.close()}catch(e){} status("denied"); startPoll() });
+        es.addEventListener("auth_revoked", function(){ try{es.close()}catch(e){} if(S) S.exp=0; open() });
+        es.onerror = function(){ if(!got || es.readyState===2) startPoll() };
+        setTimeout(function(){ if(!got) startPoll() }, 6000);
+      });
+    }
+    poll(); open();
+    if(useAuth) setInterval(function(){ if(!pollT){ if(S) S.exp=0; open() } }, 50*60*1000);
+    return { refresh: poll, stop: function(){ stopped=true; try{es&&es.close()}catch(e){} clearInterval(pollT) } };
   }
-  /* Conexión: primero en vivo (streaming). Si no llega nada en 6 s o se cae,
-     se revisa la base cada 3 s para que siempre funcione. */
-  var statusCb=null, gotStream=false, pollT=null;
-  function setStatus(s){ statusCb && statusCb(s) }
-  function refresh(){
-    return fetch(base + "/.json", {cache:"no-store"}).then(function(r){
-      if(r.status===401||r.status===403){ online=false; setStatus("denied"); return }
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      return r.json().then(function(d){ tree=d||{}; online=true; setStatus("on"); emit() });
-    }).catch(function(){ online=false; setStatus("off") });
-  }
-  function startPolling(){ if(pollT) return; refresh(); pollT=setInterval(refresh, 3000) }
-  function connect(onStatus){
-    statusCb=onStatus;
-    if(!ready){ setStatus("setup"); return }
-    refresh();
-    if(typeof EventSource==="undefined"){ startPolling(); return }
-    try{ es && es.close() }catch(e){}
-    try{ es = new EventSource(base + "/.json") }catch(e){ startPolling(); return }
-    es.addEventListener("put", function(e){ var m=JSON.parse(e.data); gotStream=true; setAt(m.path, m.data, false); online=true; setStatus("on"); emit() });
-    es.addEventListener("patch", function(e){ var m=JSON.parse(e.data); gotStream=true; setAt(m.path, m.data, true); emit() });
-    es.addEventListener("cancel", function(){ startPolling() });
-    es.addEventListener("auth_revoked", function(){ startPolling() });
-    es.onerror = function(){ if(!gotStream || es.readyState===2) startPolling() };
-    setTimeout(function(){ if(!gotStream) startPolling() }, 6000);
-  }
-  function req(method, path, body){
+
+  function req(method, path, body, useAuth){
     if(!ready) return Promise.reject(new Error("setup"));
-    return fetch(base + path + ".json", {method:method, headers:{"Content-Type":"application/json"}, body: body===undefined?undefined:JSON.stringify(body)})
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json() })
-      .then(function(d){ if(pollT || !gotStream) refresh(); return d });
+    return token().then(function(t){
+      return fetch(url(path, useAuth ? t : null), {method:method, headers:{"Content-Type":"application/json"}, body: body===undefined?undefined:JSON.stringify(body)});
+    }).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json() });
   }
+
+  /* ---------- datos ---------- */
+  var config = {}, faqsObj = {};
+  function biz(){ var b=config||{}; return {nombre:b.nombre||"",giro:b.giro||"",horario:b.horario||"",tel:b.tel||"",dir:b.dir||"",prod:b.prod||"",extra:b.extra||""} }
+  function faqs(){ var o=faqsObj||{}; return Object.keys(o).map(function(id){ return Object.assign({id:id}, o[id]) }).sort(function(a,b){return (a.at||0)-(b.at||0)}) }
 
   /* ---------- texto ---------- */
   var STOP="que tienen tiene hay para los las una uno unos unas con por del como cual donde esta estan son sus ustedes puedo pueden tengo mas algun alguna venden manejan aceptan quiero saber hola buenas buenos dias tardes noches favor me nos le les el la lo al de en y o a es su mi tu se si no".split(" ");
@@ -70,11 +104,6 @@ var Nexa = (function(){
   function overlap(a,b){ if(!a.length||!b.length) return 0; var c=0; a.forEach(function(w){ if(b.indexOf(w)>=0) c++ }); return c/Math.min(a.length,b.length) }
   function has(ws,list){ return list.some(function(x){return ws.indexOf(stem(norm(x)))>=0}) }
   function lc1(s){ return String(s).replace(/^(\w)/,function(c){return c.toLowerCase()}) }
-
-  function biz(){ var b=tree.config||{}; return {nombre:b.nombre||"",giro:b.giro||"",horario:b.horario||"",tel:b.tel||"",dir:b.dir||"",prod:b.prod||"",extra:b.extra||""} }
-  function list(key){ var o=tree[key]||{}; return Object.keys(o).map(function(id){ return Object.assign({id:id}, o[id]) }) }
-  function faqs(){ return list("faqs").sort(function(a,b){return (a.at||0)-(b.at||0)}) }
-  function preguntas(){ return list("preguntas").sort(function(a,b){return (a.at||0)-(b.at||0)}) }
   function products(){
     return biz().prod.split("\n").map(function(l){
       var m=l.split(/\s+-\s+|:\s*/); var name=(m[0]||"").trim(); var price=(m.slice(1).join(" ")||"").trim();
@@ -101,13 +130,20 @@ var Nexa = (function(){
   function lsGet(k){ try{ return JSON.parse(localStorage.getItem(k)) }catch(e){ return null } }
   function lsSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} }
 
+  /* config y preguntas frecuentes: públicas para leer, las escribe solo el equipo */
+  function watchBusiness(cb, onStatus){
+    subscribe("/config", function(d){ config=d||{}; cb() }, onStatus, false);
+    subscribe("/faqs", function(d){ faqsObj=d||{}; cb() }, null, false);
+  }
+
   return {
-    ready:ready, connect:connect, onChange:function(f){ listeners.push(f) },
-    get:function(p){ return req("GET",p) }, put:function(p,b){ return req("PUT",p,b) },
-    post:function(p,b){ return req("POST",p,b) }, patch:function(p,b){ return req("PATCH",p,b) },
-    del:function(p){ return req("DELETE",p) },
-    biz:biz, faqs:faqs, preguntas:preguntas, products:products, menuText:menuText, answer:answer,
-    lc1:lc1, ago:ago, lsGet:lsGet, lsSet:lsSet, isOnline:function(){return online}
+    ready:ready, subscribe:subscribe, watchBusiness:watchBusiness,
+    get:function(p,a){ return req("GET",p,undefined,a) }, put:function(p,b,a){ return req("PUT",p,b,a) },
+    post:function(p,b,a){ return req("POST",p,b,a) }, patch:function(p,b,a){ return req("PATCH",p,b,a) },
+    del:function(p,a){ return req("DELETE",p,undefined,a) },
+    signIn:signIn, signOut:signOut, authed:authed, email:function(){ return S&&S.email },
+    biz:biz, faqs:faqs, products:products, menuText:menuText, answer:answer,
+    lc1:lc1, ago:ago, lsGet:lsGet, lsSet:lsSet
   };
 })();
 
