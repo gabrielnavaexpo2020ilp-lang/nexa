@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bienvenido</title>
+<meta name="description" content="Menú, horario y pedidos para recoger.">
+<meta name="theme-color" content="#0A2C26">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F3B33'/%3E%3Cpath d='M16 24h26v14a10 10 0 0 1-10 10h-6a10 10 0 0 1-10-10z' fill='%23FFFDF6'/%3E%3Cpath d='M42 28h3a5 5 0 0 1 0 10h-3' fill='none' stroke='%23FFFDF6' stroke-width='4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Bowlby+One&family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Marcellus&family=Yeseva+One&display=swap">
 <link rel="stylesheet" href="site.css">
@@ -12,7 +15,7 @@
 <header class="bar">
   <div class="wrap">
     <a class="name" href="#inicio" id="barName"></a>
-    <nav aria-label="Secciones"><a href="#menu">Menú</a><a href="#visitanos">Visítanos</a></nav>
+    <nav aria-label="Secciones"><a href="#menu">Menú</a><a href="#como-pedir">Cómo pedir</a><a href="#nosotros" id="navAbout">Nosotros</a><a href="#visitanos">Visítanos</a></nav>
     <button class="cartbtn" id="cartBtn" type="button">Tu pedido <b id="cartCount" hidden>0</b></button>
   </div>
 </header>
@@ -44,29 +47,66 @@
     </div>
   </section>
 
+  <div class="strip"><div class="wrap">
+    <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Pide en línea y recoge sin hacer fila</span>
+    <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Pagas al recoger</span>
+    <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Resolvemos tus dudas por chat</span>
+  </div></div>
+
+  <section class="favs wrap" id="favoritos" hidden>
+    <h2>Los favoritos de la casa</h2>
+    <div class="fav-grid" id="favGrid"></div>
+  </section>
+
   <section class="menu wrap" id="menu">
-    <h2>Menú</h2>
-    <p class="lead">Toca el + para armar tu pedido. Lo preparamos y pasas a recogerlo.</p>
+    <div class="menu-head">
+      <div><h2>Menú</h2><p class="lead">Toca el + para armar tu pedido. Lo preparamos y pasas a recogerlo.</p></div>
+      <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+        <label class="vh" for="find">Buscar en el menú</label><input type="search" id="find" placeholder="Buscar en el menú" autocomplete="off"></div>
+    </div>
     <nav class="cats" id="cats" aria-label="Categorías del menú" hidden></nav>
     <div id="siteMenu"></div>
+  </section>
+
+  <section class="how" id="como-pedir">
+    <div class="wrap">
+      <h2>Pide desde aquí, recoge sin esperar</h2>
+      <ol>
+        <li><b>Arma tu pedido</b><span>Toca el + en lo que se te antoje del menú.</span></li>
+        <li><b>Envíalo</b><span>Dinos tu nombre y a qué hora pasas. No pedimos tarjeta.</span></li>
+        <li><b>Te avisamos</b><span>Esta página te dice cuándo está listo. Pagas al recoger.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="about" id="nosotros" hidden>
+    <div class="wrap">
+      <h2>Quiénes somos</h2>
+      <div><p id="siteHistoria"></p><a class="insta" id="siteInsta" target="_blank" rel="noopener" hidden></a></div>
+    </div>
   </section>
 
   <section class="visit" id="visitanos">
     <div class="wrap">
       <h2>Visítanos</h2>
       <div class="grid">
-        <div><h3>Horario</h3><p id="vHorario"></p><p class="small" id="vStatus"></p></div>
-        <div><h3>Dirección</h3><p id="vDir"></p></div>
-        <div><h3>Teléfono y WhatsApp</h3><p id="vTel"></p></div>
+        <div>
+          <table class="hours" id="hoursTable" hidden><caption class="vh">Horario por día</caption><tbody></tbody></table>
+          <div class="card" id="hoursText" hidden><h3>Horario</h3><p id="vHorario"></p></div>
+        </div>
+        <div>
+          <div class="card"><h3>Dirección</h3><p id="vDir"></p><div class="acts"><a class="btn" id="mapBtn" target="_blank" rel="noopener" hidden>Cómo llegar</a></div></div>
+          <div class="card"><h3>Teléfono y WhatsApp</h3><p id="vTel"></p><div class="acts"><a class="btn wa" id="waBtn" target="_blank" rel="noopener" hidden>Escribir por WhatsApp</a><button class="btn ghost" type="button" id="chatBtn">Preguntar en el chat</button></div></div>
+        </div>
       </div>
-      <p class="extra" id="siteExtra" hidden></p>
+      <ul class="tags" id="siteExtra" hidden></ul>
     </div>
   </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <span><span id="footName"></span><span id="demoNote" hidden> · Datos de ejemplo</span></span>
+    <span><span class="big" id="footName"></span><span id="footGiro"></span><span id="demoNote" hidden> · Datos de ejemplo</span></span>
     <span>Pedidos y asistente con NEXA · <a href="equipo.html">Acceso del equipo</a></span>
   </div>
 </footer>

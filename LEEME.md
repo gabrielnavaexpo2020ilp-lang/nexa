@@ -3,7 +3,7 @@
 | Archivo | Para qué sirve |
 |---|---|
 | `index.html`, `site.css`, `site.js` | La página del negocio que ven los clientes: portada, menú, pedido para recoger y asistente. |
-| `equipo.html`, `style.css` | Panel del equipo: preguntas por responder, pedidos, actividad y datos del negocio. |
+| `equipo.html`, `panel.css`, `panel.js` | Panel del equipo: resumen del día, bandeja de preguntas, tablero de pedidos, respuestas guardadas, datos del negocio y código QR. |
 | `nexa.js` | Núcleo compartido: conexión a Firebase, respuestas del asistente, horario, estilos. |
 | `database.rules.json` | Reglas de seguridad de Firebase (hay que pegarlas una vez). |
 | `worker/worker.js` | Servicio opcional para que el asistente responda con IA. |

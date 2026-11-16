@@ -95,7 +95,7 @@ var Nexa = (function(){
 
   /* ---------- datos ---------- */
   var config = {}, faqsObj = {};
-  function biz(){ var b=config||{}; return {nombre:b.nombre||"",giro:b.giro||"",lema:b.lema||"",estilo:b.estilo||"",horario:b.horario||"",tel:b.tel||"",dir:b.dir||"",prod:b.prod||"",extra:b.extra||""} }
+  function biz(){ var b=config||{}; return {nombre:b.nombre||"",giro:b.giro||"",lema:b.lema||"",estilo:b.estilo||"",horario:b.horario||"",tel:b.tel||"",dir:b.dir||"",prod:b.prod||"",extra:b.extra||"",historia:b.historia||"",insta:b.insta||""} }
   function faqs(){ var o=faqsObj||{}; return Object.keys(o).map(function(id){ return Object.assign({id:id}, o[id]) }).sort(function(a,b){return (a.at||0)-(b.at||0)}) }
 
   /* ---------- texto ---------- */
@@ -112,8 +112,10 @@ var Nexa = (function(){
     return biz().prod.split("\n").map(function(l){
       l=l.trim(); if(!l) return null;
       if(l.charAt(0)==="#"){ cat=l.replace(/^#+\s*/,""); return null }
-      var m=l.split(/\s+[-–]\s+|:\s+/); var name=(m[0]||"").trim(); var price=(m[1]||"").trim(); var desc=m.slice(2).join(" - ").trim();
-      return name?{name:name,price:price,desc:desc,cat:cat,w:words(name)}:null }).filter(Boolean);
+      var m=l.split(/\s+[-–]\s+|:\s+/); var name=(m[0]||"").trim(); var price=(m[1]||"").trim(); var rest=m.slice(2), img="";
+      if(rest.length && /^https:\/\/\S+$/.test(rest[rest.length-1].trim())) img=rest.pop().trim();
+      var desc=rest.join(" - ").trim();
+      return name?{name:name,price:price,desc:desc,img:img,cat:cat,w:words(name)}:null }).filter(Boolean);
   }
   function categories(){ var out=[], by={}; products().forEach(function(p){ var c=p.cat||""; if(!by[c]){ by[c]={name:c,items:[]}; out.push(by[c]) } by[c].items.push(p) }); return out }
   function money(t){ var m=String(t||"").replace(/,/g,"").match(/\d+(\.\d+)?/); return m?Number(m[0]):0 }
@@ -131,6 +133,20 @@ var Nexa = (function(){
     if(rng){ var a=DAYS.indexOf(rng[1]), b=DAYS.indexOf(rng[2]), k=a; for(var n=0;n<7;n++){ days[k]=true; if(k===b) break; k=(k+1)%7 } }
     else { var any=false; DAYS.forEach(function(d,ix){ if(t.indexOf(d)>=0){ days[ix]=true; any=true } }); if(!any) days=days.map(function(){return true}) }
     return {days:days,open:o,close:c};
+  }
+  function hoursTable(){
+    var h=hours(); if(!h) return null; var N=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"], today=new Date().getDay();
+    return [1,2,3,4,5,6,0].map(function(d){ return {dia:N[d],texto:h.days[d]?hhmm(h.open)+" a "+hhmm(h.close):"Cerrado",hoy:d===today,abre:h.days[d]} });
+  }
+  /* dibujo para cada producto según su nombre (si no trae foto) */
+  function icon(p){
+    var n=" "+norm(p.name).replace(/\s+/g," ")+" ", t=theme();
+    var K=[["olla","jarro"],["chocolate","cup"],["te ","tea"],["infusion","tea"],["chai","tea"],["agua","glass"],["jugo","glass"],["refresco","glass"],["licuado","glass"],["smoothie","glass"],["frappe","glass"],
+      ["concha","concha"],["croissant","croissant"],["cuernito","croissant"],["pan","slice"],["pastel","slice"],["pay","slice"],["mollete","plate"],["sandwich","plate"],["ensalada","plate"],["chilaquil","plate"],
+      ["taco","taco"],["quesadilla","taco"],["torta","plate"],["corte","scissors"],["tinte","scissors"],["barba","scissors"],["unas","spark"],["facial","spark"],
+      ["cafe","cup"],["latte","cup"],["capuchino","cup"],["americano","cup"],["espresso","cup"],["mocha","cup"]];
+    for(var i=0;i<K.length;i++) if(n.indexOf(" "+K[i][0])>=0) return K[i][1];
+    return {cafeteria:"cup",taqueria:"taco",estetica:"spark",tienda:"bag"}[t]||"bag";
   }
   function hhmm(m){ var h=Math.floor(m/60)%24, mm=m%60; return h+":"+(mm<10?"0":"")+mm }
   function openNow(){
@@ -164,7 +180,9 @@ var Nexa = (function(){
   var DEMO={nombre:"Café Central",giro:"Cafetería de barrio",lema:"Café de olla, pan del día y una mesa para quedarse un rato.",estilo:"cafeteria",
     horario:"Lunes a sábado de 8:00 a 20:00",tel:"55 1234 5678 (WhatsApp)",dir:"[Dirección de ejemplo]",
     prod:"# Café\nCafé de olla - $38 - Con canela y piloncillo, en pocillo de peltre\nAmericano - $40 - Grano de Veracruz, tueste medio\nLatte - $60 - Espresso doble con leche vaporizada\nCapuchino - $55 - Con canela o cocoa encima\n# Sin café\nChocolate caliente - $50 - De metate, batido con molinillo\nTé chai - $52 - Especiado, con leche\nAgua fresca del día - $30 - Pregunta por el sabor de hoy\n# Pan y antojos\nConcha - $22 - Vainilla o chocolate, horneada en la mañana\nCroissant - $35 - De mantequilla\nPan de elote - $30 - Rebanada, receta de la casa\nMolletes - $68 - Con frijoles, queso gratinado y pico de gallo",
-    extra:"Aceptamos efectivo y tarjeta. Tenemos wifi gratis para clientes. Puedes pedir para llevar."};
+    extra:"Aceptamos efectivo y tarjeta. Tenemos wifi gratis para clientes. Puedes pedir para llevar.",
+    historia:"Abrimos en 2019 con una cafetera, seis mesas y la receta de café de olla de la abuela. Hoy tostamos grano de Veracruz cada semana y horneamos el pan en casa todas las mañanas. Seguimos atendiendo nosotros.",
+    insta:"cafecentral.mx"};
   var demo=false;
   function useDemo(){ if(biz().nombre) return false; config=DEMO; faqsObj={d1:{q:"¿Tienen servicio a domicilio?",a:"Por ahora no tenemos servicio a domicilio, pero puedes pedir en línea y recoger en el local.",src:"negocio",at:1}}; demo=true; return true }
   function menuText(){ var ps=products(); return ps.length?"Este es nuestro menú:\n"+ps.map(function(p){return "• "+p.name+(p.price?" ("+p.price+")":"")}).join("\n"):"" }
@@ -201,7 +219,7 @@ var Nexa = (function(){
     del:function(p,a){ return req("DELETE",p,undefined,a) },
     signIn:signIn, signOut:signOut, authed:authed, email:function(){ return S&&S.email },
     biz:biz, faqs:faqs, products:products, categories:categories, money:money, pesos:pesos, openNow:openNow, waLink:waLink, mapLink:mapLink,
-    theme:theme, THEMES:THEMES, askAI:askAI, useDemo:useDemo, isDemo:function(){return demo}, DEMO:DEMO, menuText:menuText, answer:answer,
+    theme:theme, THEMES:THEMES, hoursTable:hoursTable, icon:icon, norm:norm, words:words, askAI:askAI, useDemo:useDemo, isDemo:function(){return demo}, DEMO:DEMO, menuText:menuText, answer:answer,
     lc1:lc1, ago:ago, lsGet:lsGet, lsSet:lsSet
   };
 })();
