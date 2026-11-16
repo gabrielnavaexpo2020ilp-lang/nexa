@@ -5,6 +5,8 @@ var NEXA_DB = "https://nexa-c5176-default-rtdb.firebaseio.com";
 var NEXA_API_KEY = "AIzaSyBY_HJBa2I5LD_gXyXjtgCNMS13lFiZ6Gg";
 var NEXA_AUTH_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword";
 var NEXA_TOKEN_URL = "https://securetoken.googleapis.com/v1/token";
+/* Respuestas con IA: pega aquí la dirección de tu Worker (ver LEEME.md). Vacío = NEXA responde solo con los datos y lo aprendido. */
+var NEXA_AI_URL = "";
 
 var Nexa = (function(){
   "use strict";
@@ -93,7 +95,7 @@ var Nexa = (function(){
 
   /* ---------- datos ---------- */
   var config = {}, faqsObj = {};
-  function biz(){ var b=config||{}; return {nombre:b.nombre||"",giro:b.giro||"",horario:b.horario||"",tel:b.tel||"",dir:b.dir||"",prod:b.prod||"",extra:b.extra||""} }
+  function biz(){ var b=config||{}; return {nombre:b.nombre||"",giro:b.giro||"",lema:b.lema||"",estilo:b.estilo||"",horario:b.horario||"",tel:b.tel||"",dir:b.dir||"",prod:b.prod||"",extra:b.extra||""} }
   function faqs(){ var o=faqsObj||{}; return Object.keys(o).map(function(id){ return Object.assign({id:id}, o[id]) }).sort(function(a,b){return (a.at||0)-(b.at||0)}) }
 
   /* ---------- texto ---------- */
@@ -104,12 +106,68 @@ var Nexa = (function(){
   function overlap(a,b){ if(!a.length||!b.length) return 0; var c=0; a.forEach(function(w){ if(b.indexOf(w)>=0) c++ }); return c/Math.min(a.length,b.length) }
   function has(ws,list){ return list.some(function(x){return ws.indexOf(stem(norm(x)))>=0}) }
   function lc1(s){ return String(s).replace(/^(\w)/,function(c){return c.toLowerCase()}) }
+  /* Una línea por producto: "Nombre - $precio - descripción". Una línea que empieza con # abre una categoría. */
   function products(){
+    var cat="";
     return biz().prod.split("\n").map(function(l){
-      var m=l.split(/\s+-\s+|:\s*/); var name=(m[0]||"").trim(); var price=(m.slice(1).join(" ")||"").trim();
-      return name?{name:name,price:price,w:words(name)}:null }).filter(Boolean);
+      l=l.trim(); if(!l) return null;
+      if(l.charAt(0)==="#"){ cat=l.replace(/^#+\s*/,""); return null }
+      var m=l.split(/\s+[-–]\s+|:\s+/); var name=(m[0]||"").trim(); var price=(m[1]||"").trim(); var desc=m.slice(2).join(" - ").trim();
+      return name?{name:name,price:price,desc:desc,cat:cat,w:words(name)}:null }).filter(Boolean);
   }
-  function menuText(){ var ps=products(); return ps.length?"Este es nuestro menú:\n"+ps.map(function(p){return "• "+p.name+(p.price?" — "+p.price:"")}).join("\n"):"" }
+  function categories(){ var out=[], by={}; products().forEach(function(p){ var c=p.cat||""; if(!by[c]){ by[c]={name:c,items:[]}; out.push(by[c]) } by[c].items.push(p) }); return out }
+  function money(t){ var m=String(t||"").replace(/,/g,"").match(/\d+(\.\d+)?/); return m?Number(m[0]):0 }
+  function pesos(n){ return "$"+(Math.round(n*100)/100).toLocaleString("es-MX") }
+
+  /* ---------- horario: entiende textos como "Lunes a sábado de 8:00 a 20:00" ---------- */
+  var DAYS=["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];
+  function hours(){
+    var t=norm(biz().horario).replace(/\s+/g," "); if(!t.trim()) return null;
+    var tm=biz().horario.toLowerCase().match(/(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\s*(?:hrs?\.?|h)?\s*(?:a|-|–|hasta)\s*(?:las\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/);
+    if(!tm) return null;
+    function mins(h,m,ap){ h=Number(h); m=Number(m||0); if(ap){ ap=ap.charAt(0); if(ap==="p"&&h<12) h+=12; if(ap==="a"&&h===12) h=0 } return h*60+m }
+    var o=mins(tm[1],tm[2],tm[3]), c=mins(tm[4],tm[5],tm[6]); if(c<=o && !tm[6] && c<=12*60) c+=12*60;
+    var days=[false,false,false,false,false,false,false], rng=t.match(new RegExp("("+DAYS.join("|")+") (?:a|al) ("+DAYS.join("|")+")"));
+    if(rng){ var a=DAYS.indexOf(rng[1]), b=DAYS.indexOf(rng[2]), k=a; for(var n=0;n<7;n++){ days[k]=true; if(k===b) break; k=(k+1)%7 } }
+    else { var any=false; DAYS.forEach(function(d,ix){ if(t.indexOf(d)>=0){ days[ix]=true; any=true } }); if(!any) days=days.map(function(){return true}) }
+    return {days:days,open:o,close:c};
+  }
+  function hhmm(m){ var h=Math.floor(m/60)%24, mm=m%60; return h+":"+(mm<10?"0":"")+mm }
+  function openNow(){
+    var h=hours(); if(!h) return null;
+    var d=new Date(), now=d.getHours()*60+d.getMinutes(), day=d.getDay();
+    if(h.days[day] && now>=h.open && now<h.close) return {open:true,text:"Abierto ahora, cerramos a las "+hhmm(h.close)};
+    if(h.days[day] && now<h.open) return {open:false,text:"Cerrado, abrimos hoy a las "+hhmm(h.open)};
+    for(var i=1;i<=7;i++){ var k=(day+i)%7; if(h.days[k]) return {open:false,text:"Cerrado, abrimos "+(i===1?"mañana":"el "+["domingo","lunes","martes","miércoles","jueves","viernes","sábado"][k])+" a las "+hhmm(h.open)} }
+    return null;
+  }
+  function waNumber(){ var d=biz().tel.replace(/\D/g,""); if(d.length===10) d="52"+d; return d.length>=11?d:"" }
+  function waLink(text){ var n=waNumber(); return n?"https://wa.me/"+n+(text?"?text="+encodeURIComponent(text):""):"" }
+  function mapLink(){ var b=biz(); return b.dir && b.dir.charAt(0)!=="[" ? "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(b.nombre+" "+b.dir) : "" }
+  var THEMES={cafeteria:"Cafetería o panadería",taqueria:"Taquería o restaurante",estetica:"Estética, barbería o spa",tienda:"Tienda o papelería"};
+  function theme(){
+    var b=biz(); if(THEMES[b.estilo]) return b.estilo; var g=norm(b.giro);
+    if(/taco|taquer|restaur|comida|cocina|antojit|pizz|hamburg|fonda|maris/.test(g)) return "taqueria";
+    if(/estetic|barber|salon|spa|unas|belleza|peluquer/.test(g)) return "estetica";
+    if(/tienda|papeler|abarrot|boutique|ropa|ferreter|regalo|accesori/.test(g)) return "tienda";
+    return "cafeteria";
+  }
+  /* IA: el Worker lee los datos del negocio y responde; si no sabe, devuelve sabe:false y la pregunta pasa al equipo. */
+  function askAI(q){
+    if(!NEXA_AI_URL) return Promise.resolve(undefined);
+    var ctl=typeof AbortController!=="undefined"?new AbortController():null, t=setTimeout(function(){ ctl&&ctl.abort() },12000);
+    return fetch(NEXA_AI_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pregunta:String(q).slice(0,300)}),signal:ctl?ctl.signal:undefined})
+      .then(function(r){ if(!r.ok) throw 0; return r.json() })
+      .then(function(d){ clearTimeout(t); return d && d.sabe && d.respuesta ? String(d.respuesta) : null })
+      .catch(function(){ clearTimeout(t); return undefined });
+  }
+  var DEMO={nombre:"Café Central",giro:"Cafetería de barrio",lema:"Café de olla, pan del día y una mesa para quedarse un rato.",estilo:"cafeteria",
+    horario:"Lunes a sábado de 8:00 a 20:00",tel:"55 1234 5678 (WhatsApp)",dir:"[Dirección de ejemplo]",
+    prod:"# Café\nCafé de olla - $38 - Con canela y piloncillo, en pocillo de peltre\nAmericano - $40 - Grano de Veracruz, tueste medio\nLatte - $60 - Espresso doble con leche vaporizada\nCapuchino - $55 - Con canela o cocoa encima\n# Sin café\nChocolate caliente - $50 - De metate, batido con molinillo\nTé chai - $52 - Especiado, con leche\nAgua fresca del día - $30 - Pregunta por el sabor de hoy\n# Pan y antojos\nConcha - $22 - Vainilla o chocolate, horneada en la mañana\nCroissant - $35 - De mantequilla\nPan de elote - $30 - Rebanada, receta de la casa\nMolletes - $68 - Con frijoles, queso gratinado y pico de gallo",
+    extra:"Aceptamos efectivo y tarjeta. Tenemos wifi gratis para clientes. Puedes pedir para llevar."};
+  var demo=false;
+  function useDemo(){ if(biz().nombre) return false; config=DEMO; faqsObj={d1:{q:"¿Tienen servicio a domicilio?",a:"Por ahora no tenemos servicio a domicilio, pero puedes pedir en línea y recoger en el local.",src:"negocio",at:1}}; demo=true; return true }
+  function menuText(){ var ps=products(); return ps.length?"Este es nuestro menú:\n"+ps.map(function(p){return "• "+p.name+(p.price?" ("+p.price+")":"")}).join("\n"):"" }
   function answer(q){
     var b=biz(), raw=norm(q), w=words(q);
     if(/^\s*(hola|buen[oa]s?|que tal|hey)\b/.test(raw) && w.length<=1) return "¡Hola! Soy el asistente de "+(b.nombre||"este negocio")+". ¿En qué te ayudo?";
@@ -132,8 +190,8 @@ var Nexa = (function(){
 
   /* config y preguntas frecuentes: públicas para leer, las escribe solo el equipo */
   function watchBusiness(cb, onStatus){
-    subscribe("/config", function(d){ config=d||{}; cb() }, onStatus, false);
-    subscribe("/faqs", function(d){ faqsObj=d||{}; cb() }, null, false);
+    subscribe("/config", function(d){ if(d&&d.nombre){ config=d; demo=false } else if(!demo) config=d||{}; cb() }, onStatus, false);
+    subscribe("/faqs", function(d){ if(!demo) faqsObj=d||{}; cb() }, null, false);
   }
 
   return {
@@ -142,7 +200,8 @@ var Nexa = (function(){
     post:function(p,b,a){ return req("POST",p,b,a) }, patch:function(p,b,a){ return req("PATCH",p,b,a) },
     del:function(p,a){ return req("DELETE",p,undefined,a) },
     signIn:signIn, signOut:signOut, authed:authed, email:function(){ return S&&S.email },
-    biz:biz, faqs:faqs, products:products, menuText:menuText, answer:answer,
+    biz:biz, faqs:faqs, products:products, categories:categories, money:money, pesos:pesos, openNow:openNow, waLink:waLink, mapLink:mapLink,
+    theme:theme, THEMES:THEMES, askAI:askAI, useDemo:useDemo, isDemo:function(){return demo}, DEMO:DEMO, menuText:menuText, answer:answer,
     lc1:lc1, ago:ago, lsGet:lsGet, lsSet:lsSet
   };
 })();

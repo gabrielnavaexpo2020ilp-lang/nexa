@@ -152,3 +152,5 @@ hr{border:0;border-top:1px solid var(--line);margin:4px 0}
 
 .pin{max-width:360px;margin:40px auto}
 .setup{border-left:4px solid var(--warn)}
+nav[role="tablist"]{display:grid;grid-template-columns:repeat(4,1fr)}
+@media (max-width:560px){ nav[role="tablist"]{grid-template-columns:repeat(2,1fr)} }

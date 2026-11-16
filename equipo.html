@@ -40,6 +40,7 @@
 
     <nav role="tablist" aria-label="Secciones del panel">
       <button role="tab" id="t-bandeja" aria-controls="v-bandeja" aria-selected="true">Bandeja <span class="badge" id="pendBadge" hidden>0</span></button>
+      <button role="tab" id="t-pedidos" aria-controls="v-pedidos" aria-selected="false">Pedidos <span class="badge" id="ordBadge" hidden>0</span></button>
       <button role="tab" id="t-actividad" aria-controls="v-actividad" aria-selected="false">Actividad</button>
       <button role="tab" id="t-negocio" aria-controls="v-negocio" aria-selected="false">Mi negocio</button>
     </nav>
@@ -56,6 +57,21 @@
           <div class="stat"><b id="sMin">0</b><span>min ahorrados (aprox.)</span></div>
         </div>
         <div id="tickets" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="v-pedidos" role="tabpanel" aria-labelledby="t-pedidos" hidden>
+      <div class="pad">
+        <div>
+          <h2>Pedidos para recoger</h2>
+          <p class="sub">Llegan desde tu página. Al avanzar un pedido, tu cliente lo ve al instante en su pantalla.</p>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="oHoy">0</b><span>pedidos de hoy</span></div>
+          <div class="stat"><b id="oVenta">$0</b><span>vendido hoy en línea</span></div>
+          <div class="stat"><b id="oAct">0</b><span>por entregar</span></div>
+        </div>
+        <div id="orders" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
     </section>
 
@@ -78,13 +94,17 @@
         <div class="grid2">
           <div><label class="l" for="fNombre">Nombre</label><input type="text" id="fNombre" maxlength="60"></div>
           <div><label class="l" for="fGiro">Giro</label><input type="text" id="fGiro" maxlength="60" placeholder="Cafetería, estética, papelería…"></div>
-          <div><label class="l" for="fHorario">Horario</label><input type="text" id="fHorario" maxlength="80"></div>
+          <div><label class="l" for="fHorario">Horario</label><input type="text" id="fHorario" maxlength="80" placeholder="Lunes a sábado de 8:00 a 20:00"><span class="hint">Escrito así, tu página muestra sola si está abierto o cerrado.</span></div>
           <div><label class="l" for="fTel">Teléfono o WhatsApp</label><input type="text" id="fTel" maxlength="40"></div>
         </div>
+        <div class="grid2">
+          <div><label class="l" for="fLema">Frase de portada</label><input type="text" id="fLema" maxlength="120" placeholder="Lo que hace especial a tu negocio, en una línea"></div>
+          <div><label class="l" for="fEstilo">Estilo de tu página</label><select id="fEstilo" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;min-height:44px"><option value="">Elegir según el giro</option></select></div>
+        </div>
         <div><label class="l" for="fDir">Dirección</label><input type="text" id="fDir" maxlength="140"></div>
-        <div><label class="l" for="fProd">Productos y precios</label><textarea id="fProd" rows="5"></textarea><span class="hint">Uno por línea: Producto - $precio</span></div>
+        <div><label class="l" for="fProd">Productos y precios</label><textarea id="fProd" rows="9"></textarea><span class="hint">Uno por línea: Producto - $precio - descripción corta. Para abrir una sección escribe # y su nombre, por ejemplo: # Bebidas</span></div>
         <div><label class="l" for="fExtra">Otra información</label><textarea id="fExtra" rows="3" placeholder="Formas de pago, envíos, promociones…"></textarea></div>
-        <div class="row"><button class="btn" type="submit">Guardar cambios</button></div>
+        <div class="row"><button class="btn" type="submit">Guardar cambios</button><button class="btn ghost" type="button" id="seedBtn2">Cargar ejemplo de Café Central</button></div>
         <hr>
         <div>
           <h2>Lo que NEXA ya sabe</h2>
@@ -101,7 +121,7 @@
 
     <section class="panel pad share">
       <h2>Página para tus clientes</h2>
-      <p class="sub">Comparte este enlace. Tus clientes solo verán el menú y el asistente.</p>
+      <p class="sub">Comparte este enlace. Tus clientes ven tu página con el menú, hacen pedidos y platican con el asistente.</p>
       <code id="clientUrl"></code>
       <div class="row">
         <button class="btn ghost" type="button" id="copyBtn">Copiar enlace</button>
@@ -143,10 +163,10 @@
   function selectUrl(){ var r=document.createRange(); r.selectNodeContents($("clientUrl")); var s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Copia el enlace seleccionado.") }
 
   /* ---------- pestañas ---------- */
-  var TABS=["bandeja","actividad","negocio"];
+  var TABS=["bandeja","pedidos","actividad","negocio"];
   function showTab(n){ TABS.forEach(function(t){ $("t-"+t).setAttribute("aria-selected",String(t===n)); $("v-"+t).hidden=t!==n }) }
   TABS.forEach(function(t,i){ var b=$("t-"+t); b.onclick=function(){showTab(t)};
-    b.onkeydown=function(e){ if(e.key==="ArrowRight"||e.key==="ArrowLeft"){ var n=TABS[(i+(e.key==="ArrowRight"?1:2))%3]; showTab(n); $("t-"+n).focus() } } });
+    b.onkeydown=function(e){ if(e.key==="ArrowRight"||e.key==="ArrowLeft"){ var n=TABS[(i+(e.key==="ArrowRight"?1:TABS.length-1))%TABS.length]; showTab(n); $("t-"+n).focus() } } });
 
   /* ---------- conexión ---------- */
   var tag=$("liveTag");
@@ -163,7 +183,49 @@
       Object.keys(d).forEach(function(sid){ var c=d[sid]; if(!c||typeof c!=="object") return; Object.keys(c).forEach(function(id){ var p=c[id]; if(p&&typeof p==="object"&&p.q) all.push(Object.assign({id:id,sid:sid},p)) }) });
       all.sort(function(a,b){return (a.at||0)-(b.at||0)}); render();
     }, status, true);
+    osub=Nexa.subscribe("/pedidos", function(d){
+      ords=[]; d=d||{};
+      Object.keys(d).forEach(function(sid){ var c=d[sid]; if(!c||typeof c!=="object") return; Object.keys(c).forEach(function(id){ var p=c[id]; if(p&&typeof p==="object"&&p.items) ords.push(Object.assign({id:id,sid:sid},p)) }) });
+      ords.sort(function(a,b){return (b.at||0)-(a.at||0)});
+      var nuevos=ords.filter(function(o){return o.status==="nuevo"}).length;
+      if(seenNew!==null && nuevos>seenNew) toast("Llegó un pedido nuevo.");
+      seenNew=nuevos; renderOrders();
+    }, function(s){ ordDenied=(s==="denied"); if(ordDenied) renderOrders() }, true);
   }
+  /* ---------- pedidos ---------- */
+  var ords=[], osub=null, seenNew=null, ordDenied=false;
+  var NEXT={nuevo:["preparando","Empezar a preparar"],preparando:["listo","Marcar listo para recoger"],listo:["entregado","Marcar entregado"]};
+  var LABEL={nuevo:["pend","Nuevo"],preparando:["team","Preparando"],listo:["nexa","Listo"],entregado:["nexa","Entregado"],cancelado:["pend","Cancelado"]};
+  function renderOrders(){
+    var box=$("orders"); box.textContent="";
+    var d0=new Date(); d0.setHours(0,0,0,0);
+    var hoy=ords.filter(function(o){return o.at>=d0.getTime() && o.status!=="cancelado"});
+    var act=ords.filter(function(o){return NEXT[o.status]});
+    $("oHoy").textContent=hoy.length; $("oVenta").textContent=Nexa.pesos(hoy.reduce(function(s,o){return s+(Number(o.total)||0)},0)); $("oAct").textContent=act.length;
+    var nuevos=ords.filter(function(o){return o.status==="nuevo"}).length; $("ordBadge").hidden=!nuevos; $("ordBadge").textContent=nuevos;
+    if(ordDenied){ var w=document.createElement("div"); w.className="empty"; w.textContent="Falta dar permiso a los pedidos en Firebase. Pega las reglas del archivo database.rules.json (pasos en LEEME.md)."; box.appendChild(w); return }
+    var list=act.concat(ords.filter(function(o){return !NEXT[o.status]}).slice(0,15));
+    if(!list.length){ var e=document.createElement("div"); e.className="empty"; e.textContent="Todavía no hay pedidos. Cuando un cliente pida desde tu página, aparecerá aquí en vivo."; box.appendChild(e); return }
+    list.forEach(function(o){
+      var key=o.sid+"/"+o.id, t=document.createElement("div"); t.className="ticket";
+      var meta=document.createElement("small"), lb=LABEL[o.status]||LABEL.nuevo, pill=document.createElement("span"); pill.className="pill "+lb[0]; pill.textContent=lb[1];
+      meta.append(pill,document.createTextNode(" "+(o.nombre||"Cliente")+" · "+Nexa.ago(o.at)+" · recoge: "+(o.hora||"")));
+      var q=document.createElement("q"); q.style.whiteSpace="pre-line"; q.style.quotes="none"; q.textContent=(o.items||[]).map(function(i){return i.c+" × "+i.n}).join("\n")+"\nTotal: "+Nexa.pesos(Number(o.total)||0);
+      t.append(meta,q);
+      if(o.nota){ var n=document.createElement("p"); n.className="sub"; n.textContent="Nota: "+o.nota; t.appendChild(n) }
+      if(NEXT[o.status]){
+        var row=document.createElement("div"); row.className="row";
+        var go=document.createElement("button"); go.className="btn"; go.type="button"; go.textContent=NEXT[o.status][1];
+        go.onclick=function(){ go.disabled=true; Nexa.patch("/pedidos/"+key,{status:NEXT[o.status][0],updatedAt:Date.now()},true).then(function(){ osub&&osub.refresh() }).catch(function(){ go.disabled=false; toast("No se pudo actualizar. Revisa tu conexión.") }) };
+        var no=document.createElement("button"); no.className="btn ghost"; no.type="button"; no.textContent="Cancelar pedido";
+        no.onclick=function(){ Nexa.patch("/pedidos/"+key,{status:"cancelado",updatedAt:Date.now()},true).then(function(){ osub&&osub.refresh() }).catch(function(){ toast("No se pudo cancelar.") }) };
+        row.append(go,no); t.appendChild(row);
+      }
+      box.appendChild(t);
+    });
+  }
+  (function(){ var s=$("fEstilo"); Object.keys(Nexa.THEMES).forEach(function(k){ var o=document.createElement("option"); o.value=k; o.textContent=Nexa.THEMES[k]; s.appendChild(o) }) })();
+
   function write(p){ return p.then(function(r){ sub&&sub.refresh(); return r }) }
 
   /* ---------- bandeja ---------- */
@@ -227,7 +289,7 @@
   }
 
   /* ---------- mi negocio ---------- */
-  var F={fNombre:"nombre",fGiro:"giro",fHorario:"horario",fTel:"tel",fDir:"dir",fProd:"prod",fExtra:"extra"};
+  var F={fNombre:"nombre",fGiro:"giro",fLema:"lema",fEstilo:"estilo",fHorario:"horario",fTel:"tel",fDir:"dir",fProd:"prod",fExtra:"extra"};
   var dirty=false;
   Object.keys(F).forEach(function(id){ $(id).addEventListener("input",function(){dirty=true}) });
   function fillForm(){ if(dirty) return; var b=Nexa.biz(); Object.keys(F).forEach(function(id){ if(document.activeElement!==$(id)) $(id).value=b[F[id]]||"" }) }
@@ -250,10 +312,10 @@
   }
   $("addFaq").onclick=function(){ var q=$("nQ").value.trim(), a=$("nA").value.trim(); if(!q||!a){ toast("Escribe la pregunta y la respuesta."); return }
     Nexa.post("/faqs",{q:q,a:a,src:"negocio",at:Date.now()},true).then(function(){ $("nQ").value=""; $("nA").value=""; toast("Pregunta agregada.") }).catch(function(){toast("No se pudo agregar.")}) };
-  $("seedBtn").onclick=function(){
-    Nexa.put("/config",{nombre:"Café Central",giro:"Cafetería",horario:"Lunes a sábado de 8:00 a 20:00",tel:"55 1234 5678 (WhatsApp)",dir:"[Dirección de ejemplo]",
-      prod:"Latte - $60\nAmericano - $40\nCapuchino - $55\nChocolate caliente - $50\nCroissant - $35\nPan de elote - $30",extra:"Aceptamos efectivo y tarjeta. Tenemos wifi gratis para clientes."},true)
-    .then(function(){ return Nexa.post("/faqs",{q:"¿Tienen servicio a domicilio?",a:"Por ahora no tenemos servicio a domicilio, pero puedes pedir para llevar.",src:"negocio",at:Date.now()},true) })
+  $("seedBtn").onclick=$("seedBtn2").onclick=function(){
+    dirty=false;
+    Nexa.put("/config",Nexa.DEMO,true)
+    .then(function(){ if(Nexa.faqs().length) return; return Nexa.post("/faqs",{q:"¿Tienen servicio a domicilio?",a:"Por ahora no tenemos servicio a domicilio, pero puedes pedir en línea y recoger en el local.",src:"negocio",at:Date.now()},true) })
     .then(function(){ toast("Ejemplo cargado.") }).catch(function(){ toast("No se pudo cargar. Revisa la conexión.") });
   };
 

@@ -1,0 +1,39 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "equipo": {
+      "$uid": { ".read": "auth != null && auth.uid === $uid" }
+    },
+    "config": {
+      ".read": true,
+      ".write": "auth != null && root.child('equipo').child(auth.uid).val() === true"
+    },
+    "faqs": {
+      ".read": true,
+      ".write": "auth != null && root.child('equipo').child(auth.uid).val() === true"
+    },
+    "preguntas": {
+      ".read": "auth != null && root.child('equipo').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('equipo').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": true,
+        "$id": {
+          ".write": "!data.exists()",
+          ".validate": "newData.hasChildren(['q','at','status']) && newData.child('q').isString() && newData.child('q').val().length <= 300"
+        }
+      }
+    },
+    "pedidos": {
+      ".read": "auth != null && root.child('equipo').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('equipo').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": true,
+        "$id": {
+          ".write": "!data.exists() && newData.child('status').val() === 'nuevo'",
+          ".validate": "newData.hasChildren(['items','total','nombre','at','status']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 60 && newData.child('total').isNumber()"
+        }
+      }
+    }
+  }
+}

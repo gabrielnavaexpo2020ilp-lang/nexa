@@ -1,155 +1,117 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-tema="cafeteria">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NEXA · Asistente</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bienvenido</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Bowlby+One&family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Marcellus&family=Yeseva+One&display=swap">
+<link rel="stylesheet" href="site.css">
 </head>
 <body>
-<div class="app">
-  <article class="panel site">
-    <div class="hero">
-      <span class="eyebrow" id="siteGiro">Cargando…</span>
-      <h1 id="siteName">&nbsp;</h1>
-      <div class="facts" id="siteFacts"></div>
+<header class="bar">
+  <div class="wrap">
+    <a class="name" href="#inicio" id="barName"></a>
+    <nav aria-label="Secciones"><a href="#menu">Menú</a><a href="#visitanos">Visítanos</a></nav>
+    <button class="cartbtn" id="cartBtn" type="button">Tu pedido <b id="cartCount" hidden>0</b></button>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="inicio">
+    <div class="wrap">
+      <div class="hero-text">
+        <p class="status" id="status" hidden><i></i><span id="statusText"></span></p>
+        <p class="giro" id="siteGiro" hidden></p>
+        <h1 id="siteName">&nbsp;</h1>
+        <p class="lema" id="siteLema" hidden></p>
+        <div class="cta">
+          <a class="btn" href="#menu">Ver el menú y pedir</a>
+          <a class="btn ghost" id="heroWa" href="#" target="_blank" rel="noopener" hidden>Escribir por WhatsApp</a>
+        </div>
+      </div>
+      <svg class="mug" viewBox="0 0 300 300" aria-hidden="true">
+        <g class="steam" fill="none" stroke="#FFFDF6" stroke-width="5" stroke-linecap="round">
+          <path d="M105 96c-14-18 14-30 0-50"/><path d="M140 88c-14-20 14-34 0-56"/><path d="M175 96c-14-18 14-30 0-50"/>
+        </g>
+        <path d="M222 160h22a34 34 0 0 1 0 68h-26" fill="none" stroke="#FFFDF6" stroke-width="16"/>
+        <path d="M222 160h22a34 34 0 0 1 0 68h-26" fill="none" stroke="#12302A" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>
+        <path d="M52 124h176v118a40 40 0 0 1-40 40H92a40 40 0 0 1-40-40z" fill="#FFFDF6"/>
+        <g fill="#0F3B33"><circle cx="84" cy="170" r="3"/><circle cx="120" cy="214" r="2.2"/><circle cx="160" cy="176" r="3.4"/><circle cx="196" cy="230" r="2.4"/><circle cx="102" cy="250" r="2.8"/><circle cx="188" cy="152" r="2"/><circle cx="142" cy="254" r="2"/><circle cx="74" cy="218" r="1.8"/><circle cx="206" cy="194" r="1.8"/></g>
+        <ellipse cx="140" cy="124" rx="88" ry="17" fill="#6B3A22"/>
+        <ellipse cx="140" cy="124" rx="88" ry="17" fill="none" stroke="#0A2C26" stroke-width="7"/>
+      </svg>
     </div>
-    <div class="menu-list">
-      <h2>Menú</h2>
-      <div id="siteMenu"></div>
+  </section>
+
+  <section class="menu wrap" id="menu">
+    <h2>Menú</h2>
+    <p class="lead">Toca el + para armar tu pedido. Lo preparamos y pasas a recogerlo.</p>
+    <nav class="cats" id="cats" aria-label="Categorías del menú" hidden></nav>
+    <div id="siteMenu"></div>
+  </section>
+
+  <section class="visit" id="visitanos">
+    <div class="wrap">
+      <h2>Visítanos</h2>
+      <div class="grid">
+        <div><h3>Horario</h3><p id="vHorario"></p><p class="small" id="vStatus"></p></div>
+        <div><h3>Dirección</h3><p id="vDir"></p></div>
+        <div><h3>Teléfono y WhatsApp</h3><p id="vTel"></p></div>
+      </div>
       <p class="extra" id="siteExtra" hidden></p>
     </div>
-  </article>
-  <p class="powered">¿Dudas? Toca el círculo para hablar con nuestro asistente.</p>
-</div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><span id="footName"></span><span id="demoNote" hidden> · Datos de ejemplo</span></span>
+    <span>Pedidos y asistente con NEXA · <a href="equipo.html">Acceso del equipo</a></span>
+  </div>
+</footer>
+
+<button class="track" id="track" type="button" hidden><b id="trackTitle"></b><span id="trackSub"></span></button>
+
+<div class="shade" id="shade" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="cartTitle" hidden>
+  <header><h2 id="cartTitle">Arma tu pedido</h2><button class="x" id="closeCart" type="button" aria-label="Cerrar">×</button></header>
+  <div class="body" id="cartBody"></div>
+  <form class="foot" id="orderForm" hidden>
+    <div><label class="l" for="oNombre">¿A nombre de quién?</label><input type="text" id="oNombre" maxlength="60" autocomplete="given-name" required></div>
+    <div><label class="l" for="oHora">¿Cuándo pasas por él?</label>
+      <select id="oHora"><option>Lo antes posible</option><option>En 15 minutos</option><option>En 30 minutos</option><option>En 1 hora</option></select></div>
+    <div><label class="l" for="oNota">Algo que debamos saber (opcional)</label><textarea id="oNota" rows="2" maxlength="200" placeholder="Sin azúcar, leche deslactosada…"></textarea></div>
+    <button class="btn" type="submit" id="sendOrder">Enviar pedido</button>
+    <p class="note">Pagas al recoger. No pedimos tarjeta.</p>
+  </form>
+  <div class="foot" id="orderDone" hidden>
+    <a class="btn wa" id="orderWa" href="#" target="_blank" rel="noopener" hidden>Avisar también por WhatsApp</a>
+    <button class="btn ghost" type="button" id="newOrder">Hacer otro pedido</button>
+  </div>
+</aside>
 
 <section class="widget" id="widget" aria-label="Chat con el asistente" hidden>
   <div class="chat-head">
-    <div class="orb" aria-hidden="true"></div>
-    <div><b id="chatName">Asistente</b><span>Asistente NEXA · responde al instante</span></div>
+    <div class="av" id="chatAv" aria-hidden="true"></div>
+    <div><b id="chatName">Asistente</b><span>Asistente virtual · el equipo responde lo que yo no sepa</span></div>
     <button class="x" id="closeChat" type="button" aria-label="Cerrar chat">×</button>
   </div>
   <div class="log" id="log" aria-live="polite"></div>
-  <div class="opts" id="opts" aria-label="Opciones"></div>
+  <div class="opts" id="opts" aria-label="Preguntas rápidas"></div>
   <form class="composer" id="askForm">
     <label for="q" class="vh">Tu pregunta</label>
     <input type="text" id="q" placeholder="Escribe tu pregunta…" autocomplete="off" maxlength="300">
     <button class="btn" type="submit" id="sendBtn">Enviar</button>
   </form>
 </section>
-<button class="fab" id="fab" type="button" aria-label="Abrir chat" aria-expanded="false" aria-controls="widget">
+<button class="fab" id="fab" type="button" aria-label="Abrir chat con el asistente" aria-expanded="false" aria-controls="widget">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
   <span class="dot" id="fabDot" hidden></span>
 </button>
 <div class="toast" id="toast" hidden></div>
 
 <script src="nexa.js"></script>
-<script>
-(function(){
-  "use strict";
-  var $=function(id){return document.getElementById(id)};
-  var sid=Nexa.lsGet("nexa-sid");
-  if(!sid){ sid="c"+Math.random().toString(36).slice(2,10)+Date.now().toString(36); Nexa.lsSet("nexa-sid",sid) }
-  var L=Nexa.lsGet("nexa-chat")||{chat:[],shown:[],open:true,unread:false};
-  function saveL(){ Nexa.lsSet("nexa-chat",L) }
-  var busy=false, typingEl=null;
-
-  function scrollLog(){ var l=$("log"); l.scrollTop=l.scrollHeight }
-  function push(m){ L.chat.push(m); if(L.chat.length>80) L.chat=L.chat.slice(-80); saveL(); renderChat() }
-  function showTyping(on){
-    if(on){ typingEl=document.createElement("div"); typingEl.className="typing"; typingEl.textContent="Escribiendo…"; $("log").appendChild(typingEl); scrollLog() }
-    else if(typingEl){ typingEl.remove(); typingEl=null }
-  }
-  function record(q,status,ans){
-    return Nexa.post("/preguntas/"+sid,{q:q,at:Date.now(),status:status,answer:ans||""}).then(function(r){ mineSub&&mineSub.refresh(); return r });
-  }
-  function ask(q,toTeam){
-    q=String(q||"").trim(); if(!q||busy) return;
-    busy=true; $("sendBtn").disabled=true; $("q").value="";
-    push({k:"u",text:q}); showTyping(true);
-    setTimeout(function(){
-      showTyping(false);
-      var ans = toTeam ? null : Nexa.answer(q);
-      if(ans){ push({k:"n",text:ans}); record(q,"nexa",ans).catch(function(){}) }
-      else {
-        record(q,"pendiente","").then(function(){
-          push({k:"n",text: toTeam ? "Claro, ya avisé al equipo. Su respuesta aparecerá aquí." : "No tengo ese dato y prefiero no inventarlo. Ya le pregunté al equipo; su respuesta aparecerá aquí."});
-          push({k:"s",text:"Enviado al equipo"});
-        }).catch(function(){
-          var t=Nexa.biz().tel;
-          push({k:"n",text:"No tengo ese dato y no pude avisar al equipo en este momento. "+(t?"Puedes contactar al negocio al "+t+".":"Intenta de nuevo en un rato.")});
-        });
-      }
-      busy=false; $("sendBtn").disabled=false;
-    },550);
-  }
-  var OPTS=[
-    {l:"Ver menú", q:"¿Qué tienen en el menú?", f:Nexa.menuText},
-    {l:"Horario", q:"¿Cuál es su horario?", f:function(){var h=Nexa.biz().horario;return h?"Nuestro horario es "+Nexa.lc1(h)+".":""}},
-    {l:"Ubicación", q:"¿Dónde están?", f:function(){var d=Nexa.biz().dir;return d?"Estamos en "+d+".":""}},
-    {l:"Contacto", q:"¿Cómo los contacto?", f:function(){var t=Nexa.biz().tel;return t?"Puedes escribirnos o llamarnos al "+t+".":""}},
-    {l:"Hablar con el equipo", q:"Quiero hablar con alguien del equipo", team:true}
-  ];
-  function pickOpt(o){
-    if(busy) return;
-    if(o.team){ ask(o.q,true); return }
-    var t=o.f(); if(!t){ ask(o.q); return }
-    busy=true; push({k:"u",text:o.l}); showTyping(true);
-    setTimeout(function(){ showTyping(false); push({k:"n",text:t}); record(o.q,"nexa",t).catch(function(){}); busy=false },450);
-  }
-  (function(){ var s=$("opts"); OPTS.forEach(function(o){ var b=document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=o.l; b.onclick=function(){pickOpt(o)}; s.appendChild(b) }) })();
-
-  function renderChat(){
-    var log=$("log"); log.textContent="";
-    var name=Nexa.biz().nombre||"este negocio";
-    [{k:"n",text:"¡Hola! Soy el asistente de "+name+". Elige una opción o escríbeme lo que quieras saber."}].concat(L.chat).forEach(function(m){
-      var d=document.createElement("div"); d.className = m.k==="s" ? "sys" : "msg "+m.k;
-      if(m.k==="t"){ var t=document.createElement("span"); t.className="tag"; t.textContent="Respuesta del equipo"; d.appendChild(t) }
-      d.appendChild(document.createTextNode(m.text)); log.appendChild(d);
-    });
-    if(typingEl) log.appendChild(typingEl);
-    scrollLog();
-  }
-  function renderFab(){
-    $("widget").hidden=!L.open;
-    $("fab").setAttribute("aria-expanded",String(!!L.open));
-    $("fab").setAttribute("aria-label",L.open?"Cerrar chat":"Abrir chat");
-    if(L.open) L.unread=false;
-    $("fabDot").hidden=!L.unread;
-    if(L.open) scrollLog();
-  }
-  $("fab").onclick=function(){ L.open=!L.open; saveL(); renderFab(); if(L.open) $("q").focus() };
-  $("closeChat").onclick=function(){ L.open=false; saveL(); renderFab(); $("fab").focus() };
-  $("askForm").onsubmit=function(e){ e.preventDefault(); ask($("q").value) };
-
-  function renderSite(){
-    var b=Nexa.biz();
-    document.title=(b.nombre||"NEXA")+" · Asistente";
-    $("siteGiro").textContent=b.giro||(b.nombre?"Bienvenido":"Este negocio aún no carga sus datos");
-    $("siteName").textContent=b.nombre||"Mi negocio";
-    $("chatName").textContent=b.nombre||"Asistente";
-    var f=$("siteFacts"); f.textContent="";
-    [b.horario,b.dir,b.tel].filter(Boolean).forEach(function(t){ var s=document.createElement("span"); s.textContent=t; f.appendChild(s) });
-    var m=$("siteMenu"); m.textContent=""; var ps=Nexa.products();
-    if(!ps.length){ var e=document.createElement("p"); e.className="sub"; e.textContent="El menú aparecerá aquí cuando el negocio lo agregue."; m.appendChild(e) }
-    ps.forEach(function(p){ var r=document.createElement("div"); r.className="item"; var a=document.createElement("span"); a.textContent=p.name; var c=document.createElement("span"); c.textContent=p.price; r.append(a,c); m.appendChild(r) });
-    $("siteExtra").textContent=b.extra; $("siteExtra").hidden=!b.extra;
-  }
-  function checkAnswers(){
-    var changed=false;
-    Object.keys(mine||{}).forEach(function(id){ var p=Object.assign({id:id},mine[id]);
-      if(p.status==="respondida" && p.answer && L.shown.indexOf(p.id)<0){ L.shown.push(p.id); L.chat.push({k:"t",text:p.answer}); changed=true }
-    });
-    if(changed){ if(!L.open) L.unread=true; else nexaToast("El equipo respondió tu pregunta."); saveL(); renderChat(); renderFab() }
-  }
-  var lastName=null, mine={}, mineSub=null;
-  renderSite(); renderChat(); renderFab();
-  Nexa.watchBusiness(function(){ renderSite(); var n=Nexa.biz().nombre; if(n!==lastName){ lastName=n; renderChat() } },
-    function(s){ if(s==="off" && !Nexa.biz().nombre) $("siteGiro").textContent="Sin conexión. Revisa tu internet." });
-  mineSub=Nexa.subscribe("/preguntas/"+sid, function(d){ mine=d||{}; checkAnswers() }, null, false);
-})();
-</script>
+<script src="site.js"></script>
 </body>
 </html>
